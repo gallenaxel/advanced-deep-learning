@@ -1,10 +1,11 @@
 [project]
-name = "deep-learning"
+name = "advanced-deep-learning"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "huggingface-hub>=0.29.3",
     "matplotlib>=3.10.1",
     "numpy>=2.2.4",
     "torch>=2.6.0",
