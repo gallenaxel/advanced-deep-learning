@@ -11,7 +11,7 @@ from torchsummary import summary
 
 DATA_PATH = "../datasets/galah4"
 
-def get_data() -> tuple[np.ndarray, np.ndarray]: 
+def get_data() -> tuple[np.ndarray, np.ndarray]:
     spectra = np.load(f"{DATA_PATH}/spectra.npy")
     # labels: mass, age, l_bol, dist, t_eff, log_g, fe_h, SNR
     labelNames = ["mass", "age", "l_bol", "dist", "t_eff", "log_g", "fe_h", "SNR"]
@@ -22,7 +22,7 @@ def get_data() -> tuple[np.ndarray, np.ndarray]:
     labels = labels[:, label_slice]
 
     spectra = np.log(np.maximum(spectra, 0.2))
-    
+
     return spectra, labels
 
 
@@ -32,22 +32,22 @@ def get_train_test_val(data_x, data_y) -> tuple[TensorDataset]:
     train_size = int(0.7 * num_samples)
     val_size = int(0.15 * num_samples)
     test_size = num_samples - train_size - val_size
-    
+
     tra, val, tst = random_split(TensorDataset(data_x, data_y),
                                  [train_size, val_size, test_size],
                                  )
-    
+
     return tra, val, tst
 
 def get_batch_loaders(data_x, data_y, batch_size=10):
     torch.manual_seed(42)
-    
+
     tra, val, tst = get_train_test_val(data_x, data_y)
-    
+
     tra_loader = DataLoader(tra, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val, batch_size=batch_size, shuffle=False)
     tst_loader = DataLoader(tst, batch_size=batch_size, shuffle=False)
-    
+
     return tra_loader, val_loader, tst_loader
 
 
@@ -58,8 +58,8 @@ if __name__ == "__main__":
         ax.plot(spectra[i], lw=1)
         ax.set_title(f"Star {i}")
         plt.tight_layout()
-        plt.savefig(f"plots/star_spectrum_{i}.png") 
-        
+        plt.savefig(f"plots/star_spectrum_{i}.png")
+
     for i in range(len(labels)):
         pass
     print(labels)
