@@ -4,15 +4,18 @@ sys.path.append("../")
 
 import pickle
 
+from tqdm import tqdm
+
 import torch.nn as nn
 
 import torch
 import numpy as np
 
-from load_data import get_data, get_batch_loaders
+from sklearn.preprocessing import StandardScaler
+
+from load_data import get_data, get_batch_loaders, plot_correlogram
 from models import CNNModel
 from util import run_training_loop, get_device
-from tqdm import tqdm
 
 import matplotlib.pyplot as plt
 
@@ -21,11 +24,19 @@ num_epochs = 10
 def main():
     spectra, labels = get_data() # spectra shape (8914, 16384)
 
+    labels_scaler = StandardScaler()
+    labels_scaler.fit(labels)
+    labels = labels_scaler.transform(labels)
+    plot_correlogram(labels, outname="correlogram_scaled")
+    
+    with open("training_stuff/label_scaler.pickle", 'wb') as f:
+        pickle.dump(labels_scaler, f)
+    
     device = get_device()
 
     spectra = torch.tensor(spectra.astype(np.float32)).to(device)
     labels = torch.tensor(labels.astype(np.float32)).to(device)
-
+    
 
     model = CNNModel(n_labels=3)
     model.to(device)

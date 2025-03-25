@@ -17,6 +17,8 @@ def predict_labels():
     model.load_state_dict(torch.load('saved_models/best_model.pth'))
     model.eval()
     x_data, y_data = get_data()
+    
+    #TODO scale labels, and rescale with inverse
     x_tensor = torch.tensor(x_data.astype(np.float32)).to(device)
     y_pred_tensor = model(x_tensor).detach()
     y_pred = y_pred_tensor #TODO * y_std + y_mean

@@ -74,10 +74,12 @@ def plot_labels_single(labels):
         plt.close()
 
 
-def plot_correlogram(labels):
+def plot_correlogram(labels, outname="labels_overall"):
     pred_labels = pd.DataFrame(labels, columns=labelNames)
     sns.pairplot(pred_labels, kind="hist")
-    plt.savefig("plots/labels_overall.png")
+    plt.tight_layout()
+    plt.savefig(f"plots/{outname}.png")
+    plt.close()
 
 
 if __name__ == "__main__":
