@@ -66,7 +66,7 @@ def main():
 
         if epoch > 0:
             if val_loss < val_losses[-1]:
-                torch.save(model.state_dict(), "saved_models/best_model.pth")
+                torch.save(model.state_dict(), "training_stuff/best_model.pth")
 
         val_losses.append(val_loss)
 
@@ -74,7 +74,7 @@ def main():
         "train_losses": train_losses,
         "val_losses": val_losses,
     }
-    with open("saved_models/training_metrics.pickle", 'wb') as f:
+    with open("training_stuff/training_metrics.pickle", 'wb') as f:
         pickle.dump(training_metrics, f)
 
     plt.plot(train_losses, label="train")
@@ -83,7 +83,7 @@ def main():
     plt.ylabel("Loss")
     plt.legend()
     plt.tight_layout()
-    plt.savefig("plots/training_performance")
+    plt.savefig("training_stuff/training_performance")
 
 
     print(train_losses)
