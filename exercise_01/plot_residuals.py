@@ -40,8 +40,10 @@ def plot_residuals():
         mean = np.mean(residual[:, i])
         counts, bins, patch = plt.hist(residual[:, i], label=label, bins=np.linspace(low, high, 100))
         plt.xlabel(f"{label} " + r"$\frac{pred - true}{true}$", loc="right")
-        plt.vlines([0, mean], 0, counts.max(), linestyles="dashed", colors="k")
+        plt.vlines(0, 0, counts.max(), linestyles="dashed", colors="k",label="Zero")
+        plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label="Predicted")
         plt.tight_layout()
+        plt.legend()
         plt.savefig(f"training_stuff/residuals_{label}.png")
         plt.close()
 
