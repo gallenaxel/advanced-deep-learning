@@ -25,7 +25,7 @@ def predict_labels():
 
     with open("training_stuff_conv/label_scaler.pickle", 'rb') as f:
         labels_scaler = pickle.load(f)
-    x_tensor = torch.tensor(x_data.astype(np.float32)).to(device).unsqueeze(1) #TODO make this nicer
+    x_tensor = torch.tensor(x_data.astype(np.float32)).to(device)#.unsqueeze(1) #TODO make this nicer
     y_pred_tensor = model(x_tensor).detach().cpu()
     y_pred = labels_scaler.inverse_transform(y_pred_tensor)
     return y_pred, y_data, x_data
@@ -40,8 +40,9 @@ def plot_residuals():
         mean = np.mean(residual[:, i])
         counts, bins, patch = plt.hist(residual[:, i], label=label, bins=np.linspace(low, high, 100))
         plt.xlabel(f"{label} " + r"$\frac{pred - true}{true}$", loc="right")
+        plt.ylabel('Counts',loc="top")
         plt.vlines(0, 0, counts.max(), linestyles="dashed", colors="k",label="Zero")
-        plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label="Predicted")
+        plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label=f"Predicted: {np.round(mean,4)}")
         plt.tight_layout()
         plt.legend()
         plt.savefig(f"training_stuff_conv/residuals_{label}.png")

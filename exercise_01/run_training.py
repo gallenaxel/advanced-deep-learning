@@ -19,7 +19,7 @@ from util import run_training_loop, get_device, EarlyStopping
 
 import matplotlib.pyplot as plt
 
-num_epochs = 10
+num_epochs = 50
 
 def main():
     spectra, labels = get_data() # spectra shape (8914, 16384)
@@ -34,7 +34,7 @@ def main():
 
     device = get_device()
 
-    spectra = torch.tensor(spectra.astype(np.float32)).to(device).unsqueeze(1) #TODO make this nicer
+    spectra = torch.tensor(spectra.astype(np.float32)).to(device)
     labels = torch.tensor(labels.astype(np.float32)).to(device)
 
     print(np.shape(spectra))
