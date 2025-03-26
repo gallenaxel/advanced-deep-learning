@@ -28,15 +28,15 @@ def main():
     labels_scaler.fit(labels)
     labels = labels_scaler.transform(labels)
     plot_correlogram(labels, outname="correlogram_scaled")
-    
+
     with open("training_stuff/label_scaler.pickle", 'wb') as f:
         pickle.dump(labels_scaler, f)
-    
+
     device = get_device()
 
     spectra = torch.tensor(spectra.astype(np.float32)).to(device)
     labels = torch.tensor(labels.astype(np.float32)).to(device)
-    
+
 
     model = CNNModel(n_labels=3)
     model.to(device)

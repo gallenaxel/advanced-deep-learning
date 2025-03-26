@@ -35,9 +35,16 @@ def plot_residuals():
     y_pred, y_data, x_data = predict_labels()
     residual = (y_pred - y_data) / y_data
     for i, label in enumerate(labelNames):
-        plt.hist(residual[:, i], label=label, bins=np.linspace(-10, 10, 1000))
-        plt.legend()
-        plt.show()
+        low = np.percentile(residual[:, i], 5)
+        high = np.percentile(residual[:, i], 95)
+        mean = np.mean(residual[:, i])
+        counts, bins, patch = plt.hist(residual[:, i], label=label, bins=np.linspace(low, high, 100))
+        plt.xlabel(f"{label} " + r"$\frac{pred - true}{true}$", loc="right")
+        plt.vlines([0, mean], 0, counts.max(), linestyles="dashed", colors="k")
+        plt.tight_layout()
+        plt.savefig(f"training_stuff/residuals_{label}.png")
+        plt.close()
+
 
     return
 
