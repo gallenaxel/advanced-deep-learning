@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 from load_data import get_data, get_batch_loaders, plot_correlogram
-from models import CNNModel
+from models import *
 from util import run_training_loop, get_device
 
 import matplotlib.pyplot as plt
@@ -29,16 +29,17 @@ def main():
     labels = labels_scaler.transform(labels)
     plot_correlogram(labels, outname="correlogram_scaled")
 
-    with open("training_stuff/label_scaler.pickle", 'wb') as f:
+    with open("training_stuff_conv/label_scaler.pickle", 'wb') as f:
         pickle.dump(labels_scaler, f)
 
     device = get_device()
 
-    spectra = torch.tensor(spectra.astype(np.float32)).to(device)
+    spectra = torch.tensor(spectra.astype(np.float32)).to(device).unsqueeze(1) #TODO make this nicer
     labels = torch.tensor(labels.astype(np.float32)).to(device)
 
+    print(np.shape(spectra))
 
-    model = CNNModel(n_labels=3)
+    model = ConvNNModel(n_labels=3)
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -48,7 +49,6 @@ def main():
     val_losses = []
 
     train_batch_loader, val_batch_loader, test_batch_loader = get_batch_loaders(spectra, labels)
-
     for epoch in tqdm(range(num_epochs)):
 
         train_loss = 0
@@ -77,7 +77,7 @@ def main():
 
         if epoch > 0:
             if val_loss < val_losses[-1]:
-                torch.save(model.state_dict(), "training_stuff/best_model.pth")
+                torch.save(model.state_dict(), "training_stuff_conv/best_model.pth")
 
         val_losses.append(val_loss)
 
@@ -85,7 +85,7 @@ def main():
         "train_losses": train_losses,
         "val_losses": val_losses,
     }
-    with open("training_stuff/training_metrics.pickle", 'wb') as f:
+    with open("training_stuff_conv/training_metrics.pickle", 'wb') as f:
         pickle.dump(training_metrics, f)
 
     plt.plot(train_losses, label="train")
@@ -94,7 +94,7 @@ def main():
     plt.ylabel("Loss")
     plt.legend()
     plt.tight_layout()
-    plt.savefig("training_stuff/training_performance")
+    plt.savefig("training_stuff_conv/training_performance")
 
 
     print(train_losses)

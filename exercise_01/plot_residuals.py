@@ -17,15 +17,15 @@ from util import get_device
 device = get_device()
 
 def predict_labels():
-    from models import CNNModel
-    model = CNNModel(3).to(device)
-    model.load_state_dict(torch.load('training_stuff/best_model.pth'))
+    from models import CNNModel, ConvNNModel
+    model = ConvNNModel(3).to(device)
+    model.load_state_dict(torch.load('training_stuff_conv/best_model.pth'))
     model.eval()
     x_data, y_data = get_data()
 
-    with open("training_stuff/label_scaler.pickle", 'rb') as f:
+    with open("training_stuff_conv/label_scaler.pickle", 'rb') as f:
         labels_scaler = pickle.load(f)
-    x_tensor = torch.tensor(x_data.astype(np.float32)).to(device)
+    x_tensor = torch.tensor(x_data.astype(np.float32)).to(device).unsqueeze(1) #TODO make this nicer
     y_pred_tensor = model(x_tensor).detach().cpu()
     y_pred = labels_scaler.inverse_transform(y_pred_tensor)
     return y_pred, y_data, x_data
@@ -44,7 +44,7 @@ def plot_residuals():
         plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label="Predicted")
         plt.tight_layout()
         plt.legend()
-        plt.savefig(f"training_stuff/residuals_{label}.png")
+        plt.savefig(f"training_stuff_conv/residuals_{label}.png")
         plt.close()
 
 
@@ -63,7 +63,7 @@ def plot_distributions():
     df = pd.concat([df_data, df_pred])
 
     sns.pairplot(df, kind="hist", hue="type")
-    plt.savefig(f"training_stuff/test_distributions_comaprisons.png")
+    plt.savefig(f"training_stuff_conv/test_distributions_comaprisons.png")
 
 
 def main():
