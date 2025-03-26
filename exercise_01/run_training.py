@@ -14,8 +14,8 @@ import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 from load_data import get_data, get_batch_loaders, plot_correlogram
-from models import *
-from util import run_training_loop, get_device
+from models import ConvNNModel
+from util import run_training_loop, get_device, EarlyStopping
 
 import matplotlib.pyplot as plt
 
@@ -43,10 +43,13 @@ def main():
     model.to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5)
     criterion = nn.functional.mse_loss
+    es_watcher = EarlyStopping()
 
     train_losses = []
     val_losses = []
+    lrs = []
 
     train_batch_loader, val_batch_loader, test_batch_loader = get_batch_loaders(spectra, labels)
     for epoch in tqdm(range(num_epochs)):
@@ -74,16 +77,24 @@ def main():
                 loss = criterion(predictions, batch_y)
                 val_loss += loss.item()
         val_loss /= len(val_batch_loader)
+        scheduler.step(val_loss)
+        lr = scheduler.get_last_lr()[0]
 
         if epoch > 0:
             if val_loss < val_losses[-1]:
                 torch.save(model.state_dict(), "training_stuff_conv/best_model.pth")
 
         val_losses.append(val_loss)
+        lrs.append(lr)
+        stop = es_watcher.step(val_loss)
+        if stop:
+            print(f"Early stooping applied after epoch {epoch}")
+            break
 
     training_metrics = {
         "train_losses": train_losses,
         "val_losses": val_losses,
+        "lrs": lrs,
     }
     with open("training_stuff_conv/training_metrics.pickle", 'wb') as f:
         pickle.dump(training_metrics, f)
@@ -95,9 +106,6 @@ def main():
     plt.legend()
     plt.tight_layout()
     plt.savefig("training_stuff_conv/training_performance")
-
-
-    print(train_losses)
 
 if __name__ == "__main__":
     main()
