@@ -1,10 +1,13 @@
 # Notes for Exercise 1
 
-- Basic training loop works now
-- Performance need to be evaluated
-- Batching with dataloader
-- Better model architecture
-- Fix a seed for reproducability
+- [x] Basic training loop works now
+- [x] Performance need to be evaluated
+- [ ] Batching with dataloader
+- [ ] Better model architecture
+- [ ] Callbacks:
+    - [x] Best model
+    - [ ] LR Scheduler
+    - [ ] Early stopping
 
 ## Run the training
 within `exercise_01`:
@@ -16,7 +19,6 @@ python run_training.py
 - [x] Download the data
 - [x] Visualize a few spectra
 - [ ] Implement a standard CNN to predict the three labels
-- [ ] Callbacks
 - [ ] Visualize and document the performance
 
 

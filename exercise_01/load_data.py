@@ -13,7 +13,7 @@ DATA_PATH = "../datasets/galah4"
 
 labelNamesAll = ["mass", "age", "l_bol", "dist", "t_eff", "log_g", "fe_h", "SNR"]
 label_slice = slice(-4, -1)
-labelNames = labelNamesAll[label_slice]
+labelNames = labelNamesAll[label_slice].copy()
 
 
 def get_data() -> tuple[np.ndarray, np.ndarray]:
@@ -75,8 +75,8 @@ def plot_labels_single(labels):
 
 
 def plot_correlogram(labels, outname="labels_overall"):
-    pred_labels = pd.DataFrame(labels, columns=labelNames)
-    sns.pairplot(pred_labels, kind="hist")
+    data_labels = pd.DataFrame(labels, columns=labelNames)
+    sns.pairplot(data_labels, kind="hist")
     plt.tight_layout()
     plt.savefig(f"plots/{outname}.png")
     plt.close()
