@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from matplotlib import pyplot as plt
+from sklearn.model_selection import train_test_split
 
 DATA_PATH = "../datasets/galah4"
 
@@ -41,6 +42,26 @@ def get_train_test_val(data_x, data_y) -> tuple[TensorDataset]:
     )
 
     return tra, val, tst
+
+
+def split_train_test_val() -> None:
+    spectra, targets = get_data()
+
+    x_train, x_test, y_train, y_test = train_test_split(spectra, targets, test_size=0.3)
+    x_test, x_val, y_test, y_val = train_test_split(x_test, y_test, test_size=0.5)
+    with open(f'{DATA_PATH}/spectra_train.npy', 'wb') as f:
+        np.save(f, x_train)
+    with open(f'{DATA_PATH}/spectra_test.npy', 'wb') as f:
+        np.save(f, x_test)
+    with open(f'{DATA_PATH}/spectra_val.npy', 'wb') as f:
+        np.save(f, x_test)
+
+    with open(f'{DATA_PATH}/labels_train.npy', 'wb') as f:
+        np.save(f, y_train)
+    with open(f'{DATA_PATH}/labels_test.npy', 'wb') as f:
+        np.save(f, y_test)
+    with open(f'{DATA_PATH}/labels_val.npy', 'wb') as f:
+        np.save(f, y_val)
 
 
 def get_batch_loaders(data_x, data_y, batch_size=10):
@@ -90,6 +111,7 @@ if __name__ == "__main__":
         "--single-labels", action="store_true", help="Plot the labels on their own"
     )
     parser.add_argument("--correlogram", action="store_true", help="Plot correlogram")
+    parser.add_argument("--split-data", action="store_true", help="Make split dataset")
     args = parser.parse_args()
     spectra, labels = get_data()
 
@@ -101,3 +123,6 @@ if __name__ == "__main__":
 
     if args.correlogram:
         plot_correlogram(labels)
+    
+    if args.split_data:
+        split_train_test_val()
