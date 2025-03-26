@@ -29,4 +29,5 @@ class ConvNNModel(nn.Module):
         
 
     def forward(self, x):
+        x.unsqueeze_(1) 
         return self.net(x)
