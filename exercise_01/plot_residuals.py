@@ -17,7 +17,7 @@ from util import get_device
 
 device = get_device()
 
-project_dir = 'training_stuff_conv'
+project_dir = 'training_stuff_conv_dev'
 
 def predict_labels() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     from models import CNNModel, ConvNNModel
@@ -28,7 +28,7 @@ def predict_labels() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     print(model)
     x_data, y_data = get_data("test")
     print(x_data.shape)
-    
+
 
     with open(f"{project_dir}/label_scaler.pickle", 'rb') as f:
         labels_scaler = pickle.load(f)
@@ -36,7 +36,7 @@ def predict_labels() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     print(x_tensor.shape)
     y_pred_tensor = model(x_tensor).detach().cpu()
     y_pred = labels_scaler.inverse_transform(y_pred_tensor)
-    
+
     print(summary(model.cpu(), ( 16384,)))
 
     return y_pred, y_data, x_data
@@ -49,11 +49,18 @@ def plot_residuals():
         low = np.percentile(residual[:, i], 5)
         high = np.percentile(residual[:, i], 95)
         mean = np.mean(residual[:, i])
-        counts, bins, patch = plt.hist(residual[:, i], label=label, bins=np.linspace(low, high, 100))
+        std = np.std(residual[:, i])
+        counts, bins, patch = plt.hist(residual[:, i], label=label, bins=np.linspace(low, high, 30))
         plt.xlabel(f"{label} " + r"$\frac{pred - true}{true}$", loc="right")
         plt.ylabel('Counts',loc="top")
         plt.vlines(0, 0, counts.max(), linestyles="dashed", colors="k",label="Zero")
         plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label=f"Predicted: {np.round(mean,4)}")
+        ax = plt.gca()
+
+        ax.text(0.2, 0.8, f'bias = {100.*mean:.1f} %\nstd = {100.*std:.1f} %',
+            horizontalalignment='left',
+            verticalalignment='top',
+            transform=ax.transAxes)
         plt.tight_layout()
         plt.legend()
         plt.savefig(f"{project_dir}/residuals_{label}.png")

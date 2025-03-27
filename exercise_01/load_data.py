@@ -17,7 +17,7 @@ labelNames = labelNamesAll[label_slice].copy()
 
 
 def get_data(split: str|None = None) -> tuple[np.ndarray, np.ndarray]:
-    
+
     if split is None:
         spectra = np.load(f"{DATA_PATH}/spectra.npy")
         # labels: mass, age, l_bol, dist, t_eff, log_g, fe_h, SNR
@@ -27,7 +27,7 @@ def get_data(split: str|None = None) -> tuple[np.ndarray, np.ndarray]:
 
         labels = labels[:, label_slice]
         spectra = np.log(np.maximum(spectra, 0.2))
-    
+
     else:
         spectra = np.load(f"{DATA_PATH}/spectra_{split}.npy")
         labels = np.load(f"{DATA_PATH}/labels_{split}.npy")
@@ -116,6 +116,6 @@ if __name__ == "__main__":
 
     if args.correlogram:
         plot_correlogram(labels, outname=f"plots/labels_overall.png")
-    
+
     if args.split_data:
         split_train_test_val()
