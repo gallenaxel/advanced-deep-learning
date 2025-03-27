@@ -10,24 +10,35 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from torchsummary import summary
 
 from load_data import get_data, labelNames
 from util import get_device
 
 device = get_device()
 
-def predict_labels():
+project_dir = 'training_stuff_conv'
+
+def predict_labels() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     from models import CNNModel, ConvNNModel
     model = ConvNNModel(3).to(device)
-    model.load_state_dict(torch.load('training_stuff_conv/best_model.pth'))
+    model.load_state_dict(torch.load(f"{project_dir}/best_model.pth"))
+    model = model.to(device)
     model.eval()
-    x_data, y_data = get_data()
+    print(model)
+    x_data, y_data = get_data("test")
+    print(x_data.shape)
+    
 
-    with open("training_stuff_conv/label_scaler.pickle", 'rb') as f:
+    with open(f"{project_dir}/label_scaler.pickle", 'rb') as f:
         labels_scaler = pickle.load(f)
-    x_tensor = torch.tensor(x_data.astype(np.float32)).to(device)#.unsqueeze(1) #TODO make this nicer
+    x_tensor = torch.tensor(x_data.astype(np.float32)).to(device)
+    print(x_tensor.shape)
     y_pred_tensor = model(x_tensor).detach().cpu()
     y_pred = labels_scaler.inverse_transform(y_pred_tensor)
+    
+    print(summary(model.cpu(), ( 16384,)))
+
     return y_pred, y_data, x_data
 
 
@@ -45,7 +56,7 @@ def plot_residuals():
         plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label=f"Predicted: {np.round(mean,4)}")
         plt.tight_layout()
         plt.legend()
-        plt.savefig(f"training_stuff_conv/residuals_{label}.png")
+        plt.savefig(f"{project_dir}/residuals_{label}.png")
         plt.close()
 
 
@@ -54,6 +65,7 @@ def plot_residuals():
 
 def plot_distributions():
     y_pred, y_data, x_data = predict_labels()
+    print(x_data.shape)
 
     df_pred = pd.DataFrame(y_pred, columns=labelNames)
     df_pred["type"] = "prediction"
@@ -64,7 +76,7 @@ def plot_distributions():
     df = pd.concat([df_data, df_pred])
 
     sns.pairplot(df, kind="hist", hue="type")
-    plt.savefig(f"training_stuff_conv/test_distributions_comaprisons.png")
+    plt.savefig(f"{project_dir}/test_distributions_comaprisons.png")
 
 
 def main():

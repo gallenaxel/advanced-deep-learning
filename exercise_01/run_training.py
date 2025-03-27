@@ -1,6 +1,7 @@
 
 import sys
 sys.path.append("../")
+import os
 
 import pickle
 
@@ -22,14 +23,22 @@ import matplotlib.pyplot as plt
 num_epochs = 50
 
 def main():
+    
+    #TODO: Argparse this
+    project_dir = "training_stuff_conv"
+    model = None # get a model loader, also used for plotting
+    
+    if not os.path.exists(project_dir):
+        os.mkdir(project_dir)
+    
     spectra, labels = get_data() # spectra shape (8914, 16384)
 
     labels_scaler = StandardScaler()
     labels_scaler.fit(labels)
     labels = labels_scaler.transform(labels)
-    plot_correlogram(labels, outname="correlogram_scaled")
+    plot_correlogram(labels, outname=f"{project_dir}/correlogram_scaled")
 
-    with open("training_stuff_conv/label_scaler.pickle", 'wb') as f:
+    with open(f"{project_dir}/label_scaler.pickle", 'wb') as f:
         pickle.dump(labels_scaler, f)
 
     device = get_device()

@@ -16,18 +16,22 @@ label_slice = slice(-4, -1)
 labelNames = labelNamesAll[label_slice].copy()
 
 
-def get_data() -> tuple[np.ndarray, np.ndarray]:
-    spectra = np.load(f"{DATA_PATH}/spectra.npy")
-    # labels: mass, age, l_bol, dist, t_eff, log_g, fe_h, SNR
+def get_data(split: str|None = None) -> tuple[np.ndarray, np.ndarray]:
+    
+    if split is None:
+        spectra = np.load(f"{DATA_PATH}/spectra.npy")
+        # labels: mass, age, l_bol, dist, t_eff, log_g, fe_h, SNR
 
-    labels = np.load(f"{DATA_PATH}/labels.npy")
-    # We only use the three labels: t_eff, log_g, fe_h, SNR
+        labels = np.load(f"{DATA_PATH}/labels.npy")
+        # We only use the three labels: t_eff, log_g, fe_h, SNR
 
-    labels = labels[:, label_slice]
-    spectra = np.log(np.maximum(spectra, 0.2))
-
+        labels = labels[:, label_slice]
+        spectra = np.log(np.maximum(spectra, 0.2))
+    
+    else:
+        spectra = np.load(f"{DATA_PATH}/spectra_{split}.npy")
+        labels = np.load(f"{DATA_PATH}/labels_{split}.npy")
     return spectra, labels
-
 
 def get_train_test_val(data_x, data_y) -> tuple[TensorDataset]:
     torch.manual_seed(42)
@@ -54,7 +58,7 @@ def split_train_test_val() -> None:
     with open(f'{DATA_PATH}/spectra_test.npy', 'wb') as f:
         np.save(f, x_test)
     with open(f'{DATA_PATH}/spectra_val.npy', 'wb') as f:
-        np.save(f, x_test)
+        np.save(f, x_val)
 
     with open(f'{DATA_PATH}/labels_train.npy', 'wb') as f:
         np.save(f, y_train)
@@ -63,17 +67,6 @@ def split_train_test_val() -> None:
     with open(f'{DATA_PATH}/labels_val.npy', 'wb') as f:
         np.save(f, y_val)
 
-
-def get_batch_loaders(data_x, data_y, batch_size=10):
-    torch.manual_seed(42)
-
-    tra, val, tst = get_train_test_val(data_x, data_y)
-
-    tra_loader = DataLoader(tra, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False)
-    tst_loader = DataLoader(tst, batch_size=batch_size, shuffle=False)
-
-    return tra_loader, val_loader, tst_loader
 
 
 def plot_spectra(spectra, labels):
@@ -98,7 +91,7 @@ def plot_correlogram(labels, outname="labels_overall"):
     data_labels = pd.DataFrame(labels, columns=labelNames)
     sns.pairplot(data_labels, kind="hist")
     plt.tight_layout()
-    plt.savefig(f"plots/{outname}.png")
+    plt.savefig(f"{outname}.png")
     plt.close()
 
 
@@ -113,7 +106,7 @@ if __name__ == "__main__":
     parser.add_argument("--correlogram", action="store_true", help="Plot correlogram")
     parser.add_argument("--split-data", action="store_true", help="Make split dataset")
     args = parser.parse_args()
-    spectra, labels = get_data()
+    spectra, labels = get_data("train")
 
     if args.spectra:
         plot_spectra(spectra, labels)
@@ -122,7 +115,7 @@ if __name__ == "__main__":
         plot_labels_single(labels)
 
     if args.correlogram:
-        plot_correlogram(labels)
+        plot_correlogram(labels, outname=f"plots/labels_overall.png")
     
     if args.split_data:
         split_train_test_val()
