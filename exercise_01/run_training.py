@@ -61,7 +61,7 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=6)
     criterion = nn.functional.mse_loss
-    es_watcher = EarlyStopping(threshold=0.01)
+    es_watcher = EarlyStopping(threshold=0.01, patience=10)
 
     train_losses = []
     val_losses = []

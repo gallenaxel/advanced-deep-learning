@@ -16,4 +16,5 @@ plots/
 
 # datasets
 datasets/
-training_stuff*
+training_stuff*/
+runs/
