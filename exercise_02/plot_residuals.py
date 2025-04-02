@@ -79,7 +79,8 @@ def plot_residuals():
         plt.ylabel('Counts',loc="top")
         plt.vlines(0, 0, counts.max(), linestyles="dashed", colors="k",label="Zero")
         #plt.vlines(mean, 0, counts.max(), linestyles="dashed", colors="r",label=f"Predicted: {np.round(mean,4)}")
-        plt.plot(bins, 1/(np.sqrt(2*np.pi)) * np.exp(-(bins**2)))
+        xx = np.linspace(bins[0], bins[-1], 100)
+        plt.plot(xx, 1/(np.sqrt(2*np.pi)) * np.exp(-(xx**2)))
         ax = plt.gca()
 
         #ax.text(0.2, 0.8, f'bias = {100.*mean:.1f} %\nstd = {100.*std:.1f} %',
