@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "huggingface-hub>=0.29.3",
+    "jammy-flows @ git+https://github.com/thoglu/jammy_flows.git",
     "matplotlib>=3.10.1",
     "numpy>=2.2.4",
     "ruff>=0.11.2",
