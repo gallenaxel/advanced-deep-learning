@@ -1,3 +1,7 @@
+
+import sys
+sys.path.append("../")
+
 import time
 import sys
 import os
@@ -14,8 +18,11 @@ import jammy_flows
 from scipy.stats import norm
 
 
+from exercise_01.load_data import get_data, labelNames
+from util import get_device
 
-DATA_PATH = ""
+
+DATA_PATH = "../datasets/galah4/"
 fp64_on_cpu = False
 
 # Hyperparameters
@@ -23,8 +30,10 @@ learning_rate = 0.8e-5
 batch_size = 32
 
 
+
+
 # Call the function to get normalized data
-spectra, labels, spectra_length, n_labels, labelNames, ranges = get_normalized_data(DATA_PATH)
+spectra, labels = get_data("train")
 
 
 # Define the CNN encoder model. The output of the model is the input to the normalizing flow.
@@ -35,7 +44,7 @@ class TinyCNNEncoder(nn.Module):
 
         self.model = nn.Sequential(
             
-            nn.Linear(..., latent_dimension),
+            nn.Linear(spectra.shape[1], latent_dimension),
         )
 
     def forward(self, x):
@@ -315,7 +324,7 @@ if __name__ == "__main__":
     model = CombinedModel(TinyCNNEncoder, nf_type=args.normalizing_flow_type)
 
     # Detect and use Apple Silicon GPU (MPS) if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    device = torch.device(get_device())
     if args.normalizing_flow_type == "full_flow" and device.type == "mps":
         # MPS does not support double precision, therefore we need to run the flow on the CPU
         fp64_on_cpu = True
