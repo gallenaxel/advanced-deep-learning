@@ -5,6 +5,7 @@ concatenation of Gaussianisation flows and one affine flow.
 The script then deconstructs the PDF layer by layer and plots the fitted density at each layer.
 This script shows how a complex PDF can be constructed by the application of successive Gaussianization flows.
 """
+
 import copy
 import os
 import torch
@@ -14,36 +15,6 @@ from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 import jammy_flows
-import pylab
-
-
-# Set random seed for reproducibility
-torch.manual_seed(0)
-np.random.seed(0)
-
-# ----- Data Generation -----
-# we generate data from a mixture of Gaussians
-N = 1000000  # total samples
-data = torch.zeros(N)  # Initialize data tensor with zeros
-
-# Define the parameters of the mixture model
-nn = np.array([0.2, 0.3, 0.2, 0.1, 0.2]) * N  # Relative number of samples for each component
-nn = nn.astype(int)  # Convert to integer
-mus = torch.tensor([-3, -2, -1, 1, 3], dtype=torch.float32)  # Means of the components
-sigmas = torch.tensor([0.5, 0.2, 0.4, 1, 0.4], dtype=torch.float32)  # Standard deviations of the components
-
-# Generate data for each component
-for i in range(len(nn)):
-    start_idx = nn[:i].sum()  # Start index for the current component
-    end_idx = nn[:i + 1].sum()  # End index for the current component
-    data[start_idx:end_idx] = torch.normal(mus[i], sigmas[i], size=(nn[i],))  # Generate data
-
-# Shuffle the data
-data = data[torch.randperm(N)]
-
-# Plot histogram of the generated data
-plt.hist(data.numpy(), bins=500, density=True)
-plt.show()
 
 
 def deconstruct_pdf_layer_by_layer(model_pdf):
@@ -65,16 +36,18 @@ def deconstruct_pdf_layer_by_layer(model_pdf):
     """
 
     # Ensure the model has only one PDF definition
-    assert len(model_pdf.pdf_defs_list) == 1
+    #assert len(model_pdf.pdf_defs_list) == 1
 
     new_pdfs_forward = []  # List to store forward PDFs
-    num_layers = len(model_pdf.layer_list[0])  # Number of layers in the model
+    #num_layers = len(model_pdf.layer_list[0])  # Number of layers in the model
     max_layers = 1  # Initialize max_layers to 1
-    flow_def = model_pdf.pdf_defs_list[0]  # Get the PDF definition
+    #flow_def = model_pdf.pdf_defs_list[0]  # Get the PDF definition
 
     # Forward pass: create PDFs layer by layer
     while max_layers <= num_layers:
-        this_pdf_def_list = model_pdf.flow_defs_list[0][:max_layers]  # Get current PDF definition list
+        this_pdf_def_list = model_pdf.flow_defs_list[0][
+            :max_layers
+        ]  # Get current PDF definition list
         new_pdf = jammy_flows.pdf(flow_def, this_pdf_def_list)  # Create new PDF
         for layer_ind, layer in enumerate(model_pdf.layer_list[0][:max_layers]):
             # Copy over parameters
@@ -82,28 +55,31 @@ def deconstruct_pdf_layer_by_layer(model_pdf):
             for n, p in layer.named_parameters():
                 getattr(cur_new_layer, n).data = p.data
         max_layers += 1
-        new_pdfs_forward.append((new_pdf, this_pdf_def_list))  # Append new PDF to the list
+        new_pdfs_forward.append(
+            (new_pdf, this_pdf_def_list)
+        )  # Append new PDF to the list
 
     # Backward pass: create PDFs layer by layer
     new_pdfs_backward = []
     while max_layers >= 1:
-        this_pdf_def_list = model_pdf.flow_defs_list[0][-max_layers + 1:]  # Get current PDF definition list
+        this_pdf_def_list = model_pdf.flow_defs_list[0][
+            -max_layers + 1 :
+        ]  # Get current PDF definition list
         new_pdf = jammy_flows.pdf(flow_def, this_pdf_def_list)  # Create new PDF
-        for layer_ind, layer in enumerate(model_pdf.layer_list[0][-max_layers + 1:]):
+        for layer_ind, layer in enumerate(model_pdf.layer_list[0][-max_layers + 1 :]):
             # Copy over parameters
             cur_new_layer = new_pdf.layer_list[0][layer_ind]
             for n, p in layer.named_parameters():
                 getattr(cur_new_layer, n).data = p.data
         max_layers -= 1
-        new_pdfs_backward.append((new_pdf, this_pdf_def_list))  # Append new PDF to the list
+        new_pdfs_backward.append(
+            (new_pdf, this_pdf_def_list)
+        )  # Append new PDF to the list
 
-    return new_pdfs_forward, new_pdfs_backward  # Return the lists of forward and backward PDFs
-
-
-# ----- Prepare DataLoader for Mini-batch Training -----
-batch_size = 200  # Define batch size
-dataset = TensorDataset(data)  # Create dataset from the generated data
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False)  # Create DataLoader
+    return (
+        new_pdfs_forward,
+        new_pdfs_backward,
+    )  # Return the lists of forward and backward PDFs
 
 
 def plot_global(forward_list, backward_list, iteration, loss):
@@ -130,7 +106,7 @@ def plot_global(forward_list, backward_list, iteration, loss):
 
     num_subflows = len(forward_list)  # Number of subflows
     # Global plot in one thing (backward/forward)
-    fig, ax_dict = pylab.subplots(2, num_subflows, figsize=(num_subflows * 2.3, 8))
+    fig, ax_dict = plt.subplots(2, num_subflows, figsize=(num_subflows * 2.3, 8))
 
     xs = np.linspace(-12, 12, 1000)  # Define x-axis values
     output = np.zeros((8, len(xs)))  # Initialize output array
@@ -155,7 +131,9 @@ def plot_global(forward_list, backward_list, iteration, loss):
                 output[col + 1] = copy.copy(fitted_pdf)
 
             # Plot histogram of the data and the fitted density
-            ax.hist(data.numpy(), bins=100, density=True, alpha=0.3, label="Data histogram")
+            ax.hist(
+                data.numpy(), bins=100, density=True, alpha=0.3, label="Data histogram"
+            )
             ax.plot(xs, fitted_pdf, color="red", lw=2, label="Fitted mixture")
             ax.set_title(this_defs)
             ax.set_xlabel("x")
@@ -165,34 +143,75 @@ def plot_global(forward_list, backward_list, iteration, loss):
     fig.tight_layout()
 
     np.savez(os.path.join(plotfolder, "global_iter_%.5d.npz" % iteration), output)
-    pylab.savefig(os.path.join(plotfolder, "global_iter_%.5d.png" % iteration))
-    pylab.close(fig)
+    plt.savefig(os.path.join(plotfolder, "global_iter_%.5d.png" % iteration))
+    plt.close(fig)
 
 
-# ----- Training Loop -----
-num_epochs = 5  # You can increase the number of epochs for better convergence
-iteration = 0
-plt.ion()  # Turn on interactive mode for plotting
+if __name__ == "__main__":
+    # Set random seed for reproducibility
+    torch.manual_seed(0)
+    np.random.seed(0)
 
-model_pdf = jammy_flows.pdf("e1", "ggggggt")  # Initialize model
-model_pdf.double()  # Convert model parameters to double precision
+    # ----- Data Generation -----
+    # we generate data from a mixture of Gaussians
+    N = 1000000  # total samples
+    data = torch.zeros(N)  # Initialize data tensor with zeros
 
-# ----- Optimizer -----
-optimizer = optim.Adam(model_pdf.parameters(), lr=0.001)  # Initialize optimizer
+    # Define the parameters of the mixture model
+    nn = (
+        np.array([0.2, 0.3, 0.2, 0.1, 0.2]) * N
+    )  # Relative number of samples for each component
+    nn = nn.astype(int)  # Convert to integer
+    mus = torch.tensor(
+        [-3, -2, -1, 1, 3], dtype=torch.float32
+    )  # Means of the components
+    sigmas = torch.tensor(
+        [0.5, 0.2, 0.4, 1, 0.4], dtype=torch.float32
+    )  # Standard deviations of the components
 
-for epoch in range(num_epochs):
-    for batch in dataloader:
-        x_batch = batch[0].unsqueeze(-1)  # Get batch data and add a dimension
-        x_batch = x_batch.to(dtype=torch.float64)  # Convert to double precision
-        optimizer.zero_grad()  # Zero the gradients
-        res, _, _ = model_pdf(x_batch)  # Forward pass
-        loss = (-res).mean()  # Compute loss
-        loss.backward()  # Backward pass
-        optimizer.step()  # Update parameters
+    # Generate data for each component
+    for i in range(len(nn)):
+        start_idx = nn[:i].sum()  # Start index for the current component
+        end_idx = nn[: i + 1].sum()  # End index for the current component
+        data[start_idx:end_idx] = torch.normal(
+            mus[i], sigmas[i], size=(nn[i],)
+        )  # Generate data
 
-        # Every 1000 batch iterations, plot the current fit
-        if iteration % 1000 == 0:
-            current_loss = loss.item()
+    # Shuffle the data
+    data = data[torch.randperm(N)]
+
+    # Plot histogram of the generated data
+    plt.hist(data.numpy(), bins=500, density=True)
+    plt.show()
+    # ----- Prepare DataLoader for Mini-batch Training -----
+    batch_size = 200  # Define batch size
+    dataset = TensorDataset(data)  # Create dataset from the generated data
+    dataloader = DataLoader(
+        dataset, batch_size=batch_size, shuffle=False
+    )  # Create DataLoader
+    # ----- Training Loop -----
+    num_epochs = 5  # You can increase the number of epochs for better convergence
+    iteration = 0
+    plt.ion()  # Turn on interactive mode for plotting
+
+    model_pdf = jammy_flows.pdf("e1", "ggggggt")  # Initialize model
+    model_pdf.double()  # Convert model parameters to double precision
+
+    # ----- Optimizer -----
+    optimizer = optim.Adam(model_pdf.parameters(), lr=0.001)  # Initialize optimizer
+    for epoch in range(num_epochs):
+        for batch in dataloader:
+            x_batch = batch[0].unsqueeze(-1)  # Get batch data and add a dimension
+            x_batch = x_batch.to(dtype=torch.float64)  # Convert to double precision
+            optimizer.zero_grad()  # Zero the gradients
+            res, _, _ = model_pdf(x_batch)  # Forward pass
+            loss = (-res).mean()  # Compute loss
+            loss.backward()  # Backward pass
+            optimizer.step()  # Update parameters
+
+            # Every 1000 batch iterations, plot the current fit
+            if iteration % 1000 == 0:
+                current_loss = loss.item()
             print(f"Epoch {epoch} Iteration {iteration}, Loss = {current_loss:.4f}")
             with torch.no_grad():
                 fw_list, bw_list = deconstruct_pdf_layer_by_layer(model_pdf)
@@ -200,7 +219,6 @@ for epoch in range(num_epochs):
 
         iteration += 1
 
-with torch.no_grad():
-    fw_list, bw_list = deconstruct_pdf_layer_by_layer(model_pdf)
-    plot_global(fw_list, bw_list, iteration, loss.cpu().detach().numpy())
-
+    with torch.no_grad():
+        fw_list, bw_list = deconstruct_pdf_layer_by_layer(model_pdf)
+        plot_global(fw_list, bw_list, iteration, loss.cpu().detach().numpy())
