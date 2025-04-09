@@ -17,6 +17,14 @@ labelNames = labelNamesAll[label_slice].copy()
 
 
 def get_data(split: str|None = None) -> tuple[np.ndarray, np.ndarray]:
+    """Get a tuple of spectra and label arrays. Can get dedicated slices.
+
+    Args:
+        split (str | None, optional): _description_. Defaults to None.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: _description_
+    """
 
     if split is None:
         spectra = np.load(f"{DATA_PATH}/spectra.npy")
@@ -32,6 +40,7 @@ def get_data(split: str|None = None) -> tuple[np.ndarray, np.ndarray]:
         spectra = np.load(f"{DATA_PATH}/spectra_{split}.npy")
         labels = np.load(f"{DATA_PATH}/labels_{split}.npy")
     return spectra, labels
+
 
 def get_train_test_val(data_x, data_y) -> tuple[TensorDataset]:
     torch.manual_seed(42)
