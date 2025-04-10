@@ -39,9 +39,9 @@ def deconstruct_pdf_layer_by_layer(model_pdf):
     #assert len(model_pdf.pdf_defs_list) == 1
 
     new_pdfs_forward = []  # List to store forward PDFs
-    #num_layers = len(model_pdf.layer_list[0])  # Number of layers in the model
+    num_layers = len(model_pdf.layer_list[0])  # Number of layers in the model
     max_layers = 1  # Initialize max_layers to 1
-    #flow_def = model_pdf.pdf_defs_list[0]  # Get the PDF definition
+    flow_def = model_pdf.pdf_defs_list[0]  # Get the PDF definition
 
     # Forward pass: create PDFs layer by layer
     while max_layers <= num_layers:
@@ -106,16 +106,19 @@ def plot_global(forward_list, backward_list, iteration, loss):
 
     num_subflows = len(forward_list)  # Number of subflows
     # Global plot in one thing (backward/forward)
-    fig, ax_dict = plt.subplots(2, num_subflows, figsize=(num_subflows * 2.3, 8))
+    fig, ax_dict = plt.subplots(2, num_subflows,
+                                figsize=(num_subflows * 2.3, 8),
+                                squeeze=False,
+                                )
 
     xs = np.linspace(-12, 12, 1000)  # Define x-axis values
     output = np.zeros((8, len(xs)))  # Initialize output array
     output[0] = xs  # Set first row to x-axis values
     for row in [0, 1]:
-        for col in range(len(forward_list)):
+        for col, lst in enumerate(forward_list):
             if row == 0:
                 # Forward plots
-                fw_item = forward_list[col]
+                fw_item = lst
                 this_pdf = fw_item[0]
                 this_defs = fw_item[1]
             else:

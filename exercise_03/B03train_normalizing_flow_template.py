@@ -149,14 +149,14 @@ if __name__ == "__main__":
             optimizer.step()  # Update parameters
 
             # Every 1000 batch iterations, plot the current fit
-            if batch_idx % 1000 == 0:
+            if batch_idx % 100 == 0:
                 current_loss = loss.item()
                 print(f"Epoch {epoch} Iteration {batch_idx}, Loss = {current_loss:.4f}")
-                # with torch.no_grad():
-                    #fw_list, bw_list = deconstruct_pdf_layer_by_layer(model)
-                    #plot_global(
-                    #    fw_list, bw_list, batch_idx, loss.cpu().detach().numpy()
-                    #)
+                with torch.no_grad():
+                    fw_list, bw_list = deconstruct_pdf_layer_by_layer(model.pdf)
+                    plot_global(
+                        fw_list, bw_list, batch_idx, loss.cpu().detach().numpy()
+                    )
 
 
         train_losses.append(train_loss / len(train_loader))
