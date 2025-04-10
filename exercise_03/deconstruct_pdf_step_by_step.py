@@ -111,8 +111,10 @@ def plot_global(forward_list, backward_list, iteration, loss):
                                 squeeze=False,
                                 )
 
-    xs = np.linspace(-12, 12, 1000)  # Define x-axis values
-    output = np.zeros((8, len(xs)))  # Initialize output array
+    n_pred_dims = 3
+    n_points = 1000
+    xs = np.tile(np.linspace(-12, 12, n_points), (n_pred_dims, 1))  # Define x-axis values
+    output = np.zeros((1+len(forward_list), n_pred_dims, n_points))  # Initialize output array
     output[0] = xs  # Set first row to x-axis values
     for row in [0, 1]:
         for col, lst in enumerate(forward_list):
@@ -128,16 +130,16 @@ def plot_global(forward_list, backward_list, iteration, loss):
 
             ax = ax_dict[row, col]
             fitted_pdf = np.zeros_like(xs)
-            fitted_pdf, _, _ = this_pdf(torch.from_numpy(xs)[:, None])
+            fitted_pdf, _, _ = this_pdf(torch.from_numpy(xs.T))
             fitted_pdf = fitted_pdf.exp().numpy()
             if row == 0:
                 output[col + 1] = copy.copy(fitted_pdf)
 
             # Plot histogram of the data and the fitted density
-            ax.hist(
-                data.numpy(), bins=100, density=True, alpha=0.3, label="Data histogram"
-            )
-            ax.plot(xs, fitted_pdf, color="red", lw=2, label="Fitted mixture")
+            #ax.hist(
+            #    data.numpy(), bins=100, density=True, alpha=0.3, label="Data histogram"
+            #)
+            ax.plot(xs[0, :], fitted_pdf, color="red", lw=2, label="Fitted mixture")
             ax.set_title(this_defs)
             ax.set_xlabel("x")
             ax.set_ylabel("Density")
