@@ -119,11 +119,11 @@ class CombinedModel(nn.Module):
             fp64_on_cpu = True
         # convert to double. Double precision is needed for the Gaussianization flow. This is for numerical stability.
         if fp64_on_cpu:  # MPS does not support double precision, therefore we need to run the flow on the CPU
-            latent_intermediate = latent_intermediate.cpu().to(torch.float32)
-            target_labels = target_labels.cpu().to(torch.float32)
+            latent_intermediate = latent_intermediate.cpu().to(torch.float64)
+            target_labels = target_labels.cpu().to(torch.float64)
         else:
-            latent_intermediate = latent_intermediate.to(torch.float32)
-            target_labels = target_labels.to(torch.float32)
+            latent_intermediate = latent_intermediate.to(torch.float64)
+            target_labels = target_labels.to(torch.float64)
 
         # evaluate the log PDF at the target labels
         log_pdf, _, _ = self.pdf(
@@ -151,12 +151,14 @@ class CombinedModel(nn.Module):
         """
         # for full flow we need to convert to double precision for the normalizing flow
         # for numerical stability
-        if self.nf_type == "full_flow":
+        fp64_on_cpu = False
+        if self.nf_type == "full_flow" and next(self.parameters()).device.type == "mps":
+            fp64_on_cpu = True
             # convert to double
-            if fp64_on_cpu:  # MPS does not support double precision, therefore we need to run the flow on the CPU
-                flow_params = flow_params.cpu().to(torch.float64)
-            else:
-                flow_params = flow_params.to(torch.float64)
+        if fp64_on_cpu:  # MPS does not support double precision, therefore we need to run the flow on the CPU
+            flow_params = flow_params.cpu().to(torch.float64)
+        else:
+            flow_params = flow_params.to(torch.float64)
 
         batch_size = flow_params.shape[0]  # get the batch size
         # sample from the normalizing flow

@@ -91,6 +91,7 @@ if __name__ == "__main__":
 
     # Detect and use Apple Silicon GPU (MPS) if available
     device = torch.device(get_device())
+    print(device)
     if args.normalizing_flow_type == "full_flow" and device.type == "mps":
         # MPS does not support double precision, therefore we need to run the flow on the CPU
         fp64_on_cpu = True
