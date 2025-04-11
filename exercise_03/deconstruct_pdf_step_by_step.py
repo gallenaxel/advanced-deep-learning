@@ -82,7 +82,12 @@ def deconstruct_pdf_layer_by_layer(model_pdf):
     )  # Return the lists of forward and backward PDFs
 
 
-def plot_global(forward_list, backward_list, iteration, loss):
+def plot_global(forward_list: list,
+                backward_list: list,
+                iteration: int,
+                loss: float,
+                plotfolder: str="./plots",
+                ):
     """
     Plots the forward and backward subflows and saves the plots and data.
 
@@ -100,7 +105,7 @@ def plot_global(forward_list, backward_list, iteration, loss):
     -------
     None
     """
-    plotfolder = "./plots"  # Define folder for saving plots
+     # Define folder for saving plots
     if not os.path.exists(plotfolder):
         os.makedirs(plotfolder)  # Create folder if it doesn't exist
 

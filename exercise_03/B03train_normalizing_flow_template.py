@@ -79,13 +79,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
     print("Using normalizing flow type ", args.normalizing_flow_type)
 
-    project_dir = "training_stuff_nf_dev"
+     # Define folder for saving plots
+    if not os.path.exists(args.normalizing_flow_type):
+        os.makedirs(args.normalizing_flow_type)  # Create folder if it doesn't exist
+    training_stuff_dir = f"{args.normalizing_flow_type}/training_stuff_nf_dev"
     num_epochs = 100
     batch_size = 20
     initial_lr = 1e-5
 
-    if not os.path.exists(project_dir):
-        os.mkdir(project_dir)
+    if not os.path.exists(training_stuff_dir):
+        os.mkdir(training_stuff_dir)
 
     model = CombinedModel(TinyCNNEncoder, 16384, nf_type=args.normalizing_flow_type)
 
@@ -106,7 +109,7 @@ if __name__ == "__main__":
     labels_train = labels_scaler.transform(labels_train)
     labels_val = labels_scaler.transform(labels_val)
 
-    with open(f"{project_dir}/label_scaler.pickle", 'wb') as f:
+    with open(f"{training_stuff_dir}/label_scaler.pickle", 'wb') as f:
         pickle.dump(labels_scaler, f)
     dataset_train = TensorDataset(
         torch.tensor(spectra_train.astype(np.float32)).to(device),
@@ -134,6 +137,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(dataset_train, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset_val, batch_size=batch_size, shuffle=False)
 
+    iteration = 0
     for epoch in tqdm(range(num_epochs)):
         train_loss = 0
         # currently no batches are run, needs dataloader
@@ -150,14 +154,16 @@ if __name__ == "__main__":
             optimizer.step()  # Update parameters
 
             # Every 1000 batch iterations, plot the current fit
-            if batch_idx % 100 == 0:
+            if iteration % 300 == 0:
                 current_loss = loss.item()
                 print(f"Epoch {epoch} Iteration {batch_idx}, Loss = {current_loss:.4f}")
                 with torch.no_grad():
                     fw_list, bw_list = deconstruct_pdf_layer_by_layer(model.pdf)
                     plot_global(
-                        fw_list, bw_list, batch_idx, loss.cpu().detach().numpy()
+                        fw_list, bw_list, iteration, loss.cpu().detach().numpy(),
+                        training_stuff_dir + "/plots/"
                     )
+            iteration += 1
 
 
         train_losses.append(train_loss / len(train_loader))
@@ -178,7 +184,7 @@ if __name__ == "__main__":
 
         if epoch > 0:
             if val_loss < val_losses[-1]:
-                torch.save(model.state_dict(), f"{project_dir}/best_model.pth")
+                torch.save(model.state_dict(), f"{training_stuff_dir}/best_model.pth")
         val_losses.append(val_loss)
         lrs.append(lr)
         stop = es_watcher.step(val_loss)
@@ -191,7 +197,7 @@ if __name__ == "__main__":
         "val_losses": val_losses,
         "lrs": lrs,
     }
-    with open(f"{project_dir}/training_metrics.pickle", "wb") as f:
+    with open(f"{training_stuff_dir}/training_metrics.pickle", "wb") as f:
         pickle.dump(training_metrics, f)
 
     plt.plot(train_losses, label="train")
@@ -200,4 +206,4 @@ if __name__ == "__main__":
     plt.ylabel("Loss")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(f"{project_dir}/training_performance")
+    plt.savefig(f"{training_stuff_dir}/training_performance")

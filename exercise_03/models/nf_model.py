@@ -121,7 +121,7 @@ class CombinedModel(nn.Module):
         if fp64_on_cpu:  # MPS does not support double precision, therefore we need to run the flow on the CPU
             latent_intermediate = latent_intermediate.cpu().to(torch.float64)
             target_labels = target_labels.cpu().to(torch.float64)
-        else:
+        elif self.nf_type == "full_flow":
             latent_intermediate = latent_intermediate.to(torch.float64)
             target_labels = target_labels.to(torch.float64)
 
@@ -157,7 +157,7 @@ class CombinedModel(nn.Module):
             # convert to double
         if fp64_on_cpu:  # MPS does not support double precision, therefore we need to run the flow on the CPU
             flow_params = flow_params.cpu().to(torch.float64)
-        else:
+        elif self.nf_type == "full_flow":
             flow_params = flow_params.to(torch.float64)
 
         batch_size = flow_params.shape[0]  # get the batch size
