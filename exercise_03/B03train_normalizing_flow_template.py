@@ -37,10 +37,6 @@ learning_rate = 0.8e-5
 batch_size = 32
 
 
-# Call the function to get normalized data
-spectra, labels = get_data("train")
-
-
 def nf_loss(inputs, batch_labels, model):
     """
     Computes the loss for a normalizing flow model.

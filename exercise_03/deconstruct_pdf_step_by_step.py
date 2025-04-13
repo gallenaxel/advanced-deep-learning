@@ -117,8 +117,8 @@ def plot_global(forward_list: list,
                                 )
 
     n_pred_dims = 3
-    n_points = 1000
-    xs = np.tile(np.linspace(-12, 12, n_points), (n_pred_dims, 1))  # Define x-axis values
+    n_points = 100
+    xs = np.tile(np.linspace(-4, 4, n_points), (n_pred_dims, 1))  # Define x-axis values
     output = np.zeros((1+len(forward_list), n_pred_dims, n_points))  # Initialize output array
     output[0] = xs  # Set first row to x-axis values
     for row in [0, 1]:

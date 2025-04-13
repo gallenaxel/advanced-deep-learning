@@ -210,7 +210,7 @@ class CombinedModel(nn.Module):
         return torch.cat([means, std_deviations], dim=1)
 
     def visualize_pdf(
-        self, input_data, filename, samplesize=1000, batch_index=0, truth=None
+        self, input_data, filename, samplesize=1000, batch_index=0, truth=None, labelNames=None,
     ):
         """
         Visualizes the probability density function (PDF) of the given input data using a normalizing flow model.
@@ -255,10 +255,10 @@ class CombinedModel(nn.Module):
         std = samples.std(dim=0).cpu().numpy()
         samples = samples.cpu().numpy()
 
-        fig, axdict = plt.subplots(3, 1)
-        for dim_ind in range(3):
+        fig, axs = plt.subplots(3, 1)
+        for dim_ind, ax in enumerate(axs):
             # plot the histogram of the samples
-            axdict[dim_ind].hist(
+            ax.hist(
                 samples[:, dim_ind],
                 color="k",
                 density=True,
@@ -272,18 +272,19 @@ class CombinedModel(nn.Module):
             max_sample = samples[:, dim_ind].max()
             xvals = np.linspace(min_sample, max_sample, 1000)
             yvals = norm.pdf(xvals, loc=mean[dim_ind], scale=std[dim_ind])
-            axdict[dim_ind].plot(
+            ax.plot(
                 xvals, yvals, color="green", label="Gaussian approximation"
             )
-
+            if labelNames is not None:
+                ax.set_xlabel(f"{labelNames[dim_ind]}")
             # plot the true value if it is given
             if truth is not None:
-                true_value = truth[dim_ind].cpu().item()
-                axdict[dim_ind].axvline(true_value, color="red", label="true value")
-
+                true_value = truth[batch_index : batch_index + 1, dim_ind].cpu().item()
+                ax.axvline(true_value, color="red", label="true value")
+                
             # plot the legend only for the first panel
             if dim_ind == 0:
-                axdict[dim_ind].legend()
-
+                ax.legend()
+        plt.tight_layout()
         plt.savefig(filename)
         plt.close(fig)
