@@ -23,7 +23,7 @@ from scipy.stats import norm
 from sklearn.preprocessing import StandardScaler
 
 
-from models.nf_model import CombinedModel, TinyCNNEncoder
+from models.nf_model import CombinedModel, TinyCNNEncoder, ConvNNModel
 from deconstruct_pdf_step_by_step import deconstruct_pdf_layer_by_layer, plot_global
 from exercise_01.load_data import get_data, labelNames
 from util import get_device, EarlyStopping
@@ -78,15 +78,15 @@ if __name__ == "__main__":
      # Define folder for saving plots
     if not os.path.exists(args.normalizing_flow_type):
         os.makedirs(args.normalizing_flow_type)  # Create folder if it doesn't exist
-    training_stuff_dir = f"{args.normalizing_flow_type}/training_stuff_nf_dev"
-    num_epochs = 100
+    training_stuff_dir = f"{args.normalizing_flow_type}/training_stuff_nf_solution"
+    num_epochs = 400
     batch_size = 20
-    initial_lr = 1e-5
+    initial_lr = 1e-4
 
     if not os.path.exists(training_stuff_dir):
         os.mkdir(training_stuff_dir)
 
-    model = CombinedModel(TinyCNNEncoder, 16384, nf_type=args.normalizing_flow_type)
+    model = CombinedModel(ConvNNModel, 16384, nf_type=args.normalizing_flow_type)
 
     # Detect and use Apple Silicon GPU (MPS) if available
     device = torch.device(get_device())

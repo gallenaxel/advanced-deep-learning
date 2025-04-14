@@ -1,6 +1,7 @@
 import sys
 import pickle
 sys.path.append("../")
+import argparse
 
 
 import torch
@@ -11,41 +12,71 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from torchsummary import summary
+from torch.utils.data import DataLoader, TensorDataset, random_split
+
 
 from exercise_01.load_data import get_data, labelNames
 from util import get_device
 
 device = get_device()
+ 
 
-project_dir = 'training_stuff_nf_dev'
 
-def predict_labels() -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    from models.nf_model import TinyCNNEncoder, CombinedModel
-    model = CombinedModel(TinyCNNEncoder,16384,"diagonal_gaussian")
+def predict_labels(args) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    project_dir = f"{args.normalizing_flow_type}/training_stuff_nf_solution"
+    from exercise_03.models.nf_model import TinyCNNEncoder, CombinedModel, ConvNNModel
+    model = CombinedModel(ConvNNModel, 16384, nf_type=args.normalizing_flow_type)
+
     model.load_state_dict(torch.load(f"{project_dir}/best_model.pth"))
     model = model.to(device)
     model.eval()
-    print(model)
     x_data, y_data = get_data("test")
-    print(x_data.shape)
+    x_data = x_data[:30]
+    y_data = y_data[:30]
+
 
 
     with open(f"{project_dir}/label_scaler.pickle", 'rb') as f:
         labels_scaler = pickle.load(f)
     x_tensor = torch.tensor(x_data.astype(np.float32)).to(device)
+    y_tensor = torch.tensor(y_data.astype(np.float32)).to(device)
     print(x_tensor.shape)
-    y_pred_tensor = model(x_tensor).detach().cpu()
+    
+    y_tensor_plot = torch.tensor(labels_scaler.transform(y_data).astype(np.float32)).to(device)
+    for n in [0, 120, 314]:
+        model.visualize_pdf(
+            x_tensor, f"{project_dir}/plots/output_pdf{n}.png", samplesize=1000, batch_index=0, truth=y_tensor_plot, labelNames=labelNames,
+        )
+        
+    dataset_test = TensorDataset(
+        x_tensor,
+        y_tensor,
+    )
+
+    test_loader = DataLoader(dataset_test, batch_size=30, shuffle=False)
+    
+    
+    y_pred_tensor = []
+    for batch_x, batch_y in test_loader:
+        batch_x = batch_x.to(device)
+        batch_y = batch_y.to(device)
+        predictions = model(batch_x)
+        y_pred_tensor.append(predictions.detach().cpu())
+
+      
+    y_pred_tensor = torch.stack(y_pred_tensor, dim=0).squeeze()#model(x_tensor).detach().cpu()
     y_pred = labels_scaler.inverse_transform(y_pred_tensor[:, :3])
     
-    y_pred_ucert = torch.exp(y_pred_tensor[:, 3:]) * labels_scaler.scale_
-
-    print(summary(model.cpu(), ( 16384,)))
+    y_pred_ucert = y_pred_tensor[:, 3:] * labels_scaler.scale_
 
     return y_pred, y_pred_ucert, y_data, x_data
 
 
-def plot_residuals():
-    y_pred, y_pred_ucert, y_data, x_data = predict_labels()
+def plot_residuals(args):
+    project_dir = f"{args.normalizing_flow_type}/training_stuff_nf_solution"
+
+    y_pred, y_pred_ucert, y_data, x_data = predict_labels(args)
+    print("Predicted labels")
     residual = (y_pred - y_data) / y_data
     residual_ucert = (y_pred - y_data) / y_pred_ucert
     for i, label in enumerate(labelNames):
@@ -103,8 +134,10 @@ def plot_residuals():
     return
 
 
-def plot_distributions():
-    y_pred, y_pred_ucert, y_data, x_data = predict_labels()
+def plot_distributions(args):
+    project_dir = f"{args.normalizing_flow_type}/training_stuff_nf_solution"
+
+    y_pred, y_pred_ucert, y_data, x_data = predict_labels(args)
     print(x_data.shape)
 
     df_pred = pd.DataFrame(y_pred, columns=labelNames)
@@ -120,8 +153,16 @@ def plot_distributions():
 
 
 def main():
-    plot_residuals()
-    plot_distributions()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-normalizing_flow_type",
+        default="diagonal_gaussian",
+        choices=["diagonal_gaussian", "full_gaussian", "full_flow"],
+    )
+    args = parser.parse_args()
+    plot_residuals(args)
+    #plot_distributions(args)
 
 if __name__ == "__main__":
+
     main()

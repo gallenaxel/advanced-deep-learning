@@ -21,6 +21,29 @@ class TinyCNNEncoder(nn.Module):
         return x
 
 
+class ConvNNModel(nn.Module):
+    def __init__(self, input_dim, latent_dimension):
+        super(ConvNNModel, self).__init__()
+
+        self.net = nn.Sequential(
+            nn.Conv1d(in_channels=1, out_channels=20, kernel_size=64, stride=16, padding=0),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=20, out_channels=10, kernel_size=16, stride=4, padding=0),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=10, out_channels=10, kernel_size=8, stride=2, padding=0),
+            nn.ReLU(),
+            nn.Conv1d(in_channels=10, out_channels=2, kernel_size=8, stride=2, padding=0),
+            nn.ReLU(),
+            nn.MaxPool1d(kernel_size=2, stride=2),
+            nn.Flatten(),
+            nn.LazyLinear(latent_dimension),
+        )
+
+    def forward(self, x):
+        x.unsqueeze_(1)
+        return self.net(x)
+
+
 class CombinedModel(nn.Module):
     """
     A combined model that integrates a normalizing flow with a CNN encoder.
@@ -175,6 +198,7 @@ class CombinedModel(nn.Module):
         )
 
         return reshaped_samples
+    
 
     def forward(self, input_data, samplesize_per_batchitem=1000):
         """
