@@ -12,6 +12,8 @@ wheels/
 # generated files
 plots/
 *_plots/
+*.png
+*.pdf
 
 
 # datasets
