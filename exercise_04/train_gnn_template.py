@@ -5,9 +5,10 @@ import argparse
 import io
 from datetime import datetime
 import numpy as np
-import awkward
-from gnn_encoder import GNNEncoder, collate_fn_gnn
-from gnn_trafo_helper import train_model, evaluate_model, normalize_x, normalize_y, normalize_time, denormalize_x, denormalize_y, get_img_from_matplotlib
+import awkward as awk
+#from gnn_encoder import GNNEncoder, collate_fn_gnn
+#from gnn_trafo_helper import train_model, evaluate_model, normalize_x, normalize_y, normalize_time, denormalize_x, denormalize_y, get_img_from_matplotlib
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,60 +19,107 @@ import torch.nn.functional as F
 from torch_geometric.data import Data, Batch
 from torch_geometric.nn import knn_graph, DynamicEdgeConv, global_mean_pool
 
-DATA_PATH = "./data_pq/"  # path to the data
+DATA_PATH = "../datasets/iceCube/"  # path to the data
+
+batch_size = 30
+
 
 # Load the dataset
-train_dataset = awkward.from_parquet(os.path.join(DATA_PATH, "train.pq"))
-val_dataset = awkward.from_parquet(os.path.join(DATA_PATH, "val.pq"))
-test_dataset = awkward.from_parquet(os.path.join(DATA_PATH, "test.pq"))
-
-# to get familiar with the dataset, let's inspect it.
-print(f"The training dataset contains {len(train_dataset)} events.")
-print(f"The validation dataset contains {len(val_dataset)} events.")
-print(f"The test dataset contains {len(test_dataset)} events.")
-print(f"The training dataset has the following columns: {train_dataset.fields}")
-print(f"The validation dataset has the following columns: {val_dataset.fields}")
-print(f"The test dataset has the following columns: {test_dataset.fields}")
-# print the first event of the training dataset
-print(f"The first event of the training dataset is: {train_dataset[0]}")
-
-# We are interested in the labels xpos and ypos. This is the position of the neutrino interaction that we want to predict.
-print(f"The first event of the training dataset has the following labels: {train_dataset['xpos'][0]}, {train_dataset['ypos'][0]}")
-# Awkward arrays also allow us to obtain the 'xpos' and 'ypos' label for all events in the dataset
-print(f"The first 10 labels of the training dataset are: {train_dataset['xpos'][:10]}, {train_dataset['ypos'][:10]}")
-
-# The data can be accessed by using the 'data' key.
-# The data is a 3D array with the first dimension being the number of events,
-# the second dimension being the the three features (time, x, y)
-# the third dimension being the number of hits,
-print(f"The first event of the training dataset has {len(train_dataset['data'][0][0])} hits, i.e., detected photons.")
-# Let's loop over all hits and print the time, x, and y coordinates of the first event.
-for i in range(len(train_dataset['data'][0, 0])):
-    print(f"Hit {i}: time = {train_dataset['data'][0,0,i]}, x = {train_dataset['data'][0,1, i]}, y = {train_dataset['data'][0,2,i]}")
-# To get all hit times of the first event, you can use the following code:
-print(f"The first event of the training dataset has the following hit times: {train_dataset['data'][0, 0]}")
-print(f"The first event of the training dataset has the following hit x positions: {train_dataset['data'][0, 1]}")
-print(f"The first event of the training dataset has the following hit y positions: {train_dataset['data'][0, 2]}")
-
+train_dataset = awk.from_parquet(os.path.join(DATA_PATH, "train.pq"))
+val_dataset = awk.from_parquet(os.path.join(DATA_PATH, "val.pq"))
+test_dataset = awk.from_parquet(os.path.join(DATA_PATH, "test.pq"))
 
 
 # Normalize data and labels
-# working with Awkward arrays is a bit tricky because the ['data'] field can't be assigned in-place,
+# working with awk arrays is a bit tricky because the ['data'] field can't be assigned in-place,
 # so we need to extract the time, x, and y coordinates, normalize them separately,
 # and then concatenate them back together.
+
+class AwkScaler:
+    def __init__(self):
+        self.fitted = False
+
+    def fit(self, x):
+        if not self.fitted:
+            self.mean = awk.mean(x)
+            self.std = awk.std(x)
+            self.fitted = True
+        else:
+            raise RuntimeError("Stupid user already fitted")
+    
+    def transform(self, x):
+        if self.fitted:
+            return (x - self.mean)/self.std
+        else:
+            raise RuntimeError("Stupid user did not fit")
+            
+    def fit_transform(self, x):
+        self.fit(x)
+        return self.transform(x)
+    
+    def inverse_transform(self, x):
+        if self.fitted:
+            return (x * self.std) +  self.mean
+        else:
+            raise RuntimeError("Stupid user did not fit")
+
+
+
 times = train_dataset["data"][:, 0:1, :]  # important to index the time dimension with 0:1 to keep this dimension (n_events, 1, n_hits)
                                             # with [:,0,:] we would get a 2D array of shape (n_events, n_hits)
-norm_times = ...
 x = train_dataset["data"][:, 1:2, :]
-norm_x = ...
 y = train_dataset["data"][:, 2:3, :]
-norm_y = ...
+
+time_scaler = AwkScaler()
+x_scaler = AwkScaler()
+y_scaler = AwkScaler()
+
+time_scaler.fit(times)
+x_scaler.fit(x)
+y_scaler.fit(y)
 
 # Concatenate the normalized data back together
-train_dataset["data"] = awkward.concatenate([norm_times, norm_x, norm_y], axis=1)
+
+
+def scale_input(dataset):
+    """Open dataset, take apart and scale, put back together.
+
+    Args:
+        dataset (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    times = dataset["data"][:, 0:1, :] 
+    x = dataset["data"][:, 1:2, :]
+    y = dataset["data"][:, 2:3, :]
+    norm_times = time_scaler.transform(times)
+    norm_x = x_scaler.transform(x)
+    norm_y = y_scaler.transform(y)
+    return awk.concatenate([norm_times, norm_x, norm_y], axis=1)
+
+
+
+
+# -----labels ----------
 # Normalize labels (this can be done in-place), e.g. by
-train_dataset["xpos"] = (train_dataset["xpos"] - x_mean) / x_std
-train_dataset["ypos"] = (train_dataset["ypos"] - y_mean) / y_std
+label_x_scaler = AwkScaler()
+label_y_scaler = AwkScaler()
+
+train_dataset["data"] = scale_input(train_dataset)
+train_dataset["xpos"] = label_x_scaler.fit_transform(train_dataset["xpos"])
+train_dataset["ypos"] = label_y_scaler.fit_transform(train_dataset["ypos"])
+
+val_dataset["data"] = scale_input(val_dataset)
+val_dataset["xpos"] = label_x_scaler.transform(val_dataset["xpos"])
+val_dataset["ypos"] = label_y_scaler.transform(val_dataset["ypos"])
+
+
+test_dataset["data"] = scale_input(test_dataset)
+test_dataset["xpos"] = label_x_scaler.transform(test_dataset["xpos"])
+test_dataset["ypos"] = label_y_scaler.transform(test_dataset["ypos"])
+
+
 
 # Hint: You can define a helper function to normalize the data and you can use the same normalization for the validation and test datasets.
 
@@ -85,10 +133,10 @@ def collate_fn_gnn(batch):
     we need to define a custom collate function which is passed to the DataLoader.
     The default collate function in PyTorch Geometric is not suitable for this case.
 
-    This function takes the Awkward arrays, converts them to PyTorch tensors,
+    This function takes the awk arrays, converts them to PyTorch tensors,
     and then creates a PyTorch Geometric Data object for each event in the batch.
 
-    You do not need to change this function.
+    !!!You do not need to change this function.!!!
 
     Parameters
     ----------
@@ -142,7 +190,7 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, col
 # The output dimension of the MLP is the new feauture dimension of this graph layer.
 from torch_geometric.nn import DynamicEdgeConv
 class GNNEncoder(nn.Module):
-    def __init__(self, ...):
+    def __init__(self, ):
         super(GNNEncoder, self).__init__()
         
         layer = DynamicEdgeConv(
