@@ -9,5 +9,12 @@ wheels/
 # Virtual environments
 .venv
 
-# Data
+# generated files
+plots/
+*_plots/
+
+
+# datasets
 datasets/
+training_stuff*/
+runs/
