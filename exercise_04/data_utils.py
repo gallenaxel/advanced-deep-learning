@@ -1,6 +1,18 @@
 import torch
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from torch_geometric.data import Data, Batch
+import awkward as awk
+import os
+
+def load_data(pq_file):
+    # Load the dataset
+    data_path = "../datasets/iceCube/"
+    dataset = awk.from_parquet(os.path.join(data_path, pq_file))
+    times = dataset["data"][:, 0:1, :]  # important to index the time dimension with 0:1 to keep this dimension (n_events, 1, n_hits) with [:,0,:] we would get a 2D array of shape (n_events, n_hits)
+    x = dataset["data"][:, 1:2, :]
+    y = dataset["data"][:, 2:3, :]
+    return times, x, y
+
 
 
 def collate_fn_gnn(batch):
