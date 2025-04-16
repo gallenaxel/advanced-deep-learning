@@ -1,22 +1,5 @@
-import time
-import sys
 import os
-import argparse
-import io
-from datetime import datetime
-import numpy as np
 import awkward
-#from gnn_encoder import GNNEncoder, collate_fn_gnn
-#from gnn_trafo_helper import train_model, evaluate_model, normalize_x, normalize_y, normalize_time, denormalize_x, denormalize_y, get_img_from_matplotlib
-import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset, random_split
-from matplotlib import pyplot as plt
-from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
-import torch.nn.functional as F
-from torch_geometric.data import Data, Batch
-from torch_geometric.nn import knn_graph, DynamicEdgeConv, global_mean_pool
 
 DATA_PATH = "../datasets/iceCube/"  # path to the data
 
