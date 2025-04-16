@@ -1,5 +1,6 @@
 import torch
 from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch_geometric.data import Data, Batch
 
 
 def collate_fn_gnn(batch):

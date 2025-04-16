@@ -26,7 +26,7 @@ class GNNEncoder(nn.Module):
         self.layer_list = [layer]
 
         self.final_mlp = nn.Sequential(
-            nn.LazyLinear(),
+            nn.LazyLinear(len(final_layers)),
         )
 
     def forward(self, data):
@@ -36,7 +36,8 @@ class GNNEncoder(nn.Module):
 
         # loop over the DynamicEdgeConv layers:
         for layer in self.layer_list:
-            x = layer(x, batch)
+            x = layer(x.cpu(), batch.cpu()).to(x.device)
+            #x = layer(x, batch)
 
         # the output of the last layer has dimensions (n_batch, n_nodes, graph_feature_dimension)
         # where n_batch is the number of graphs in the batch and n_nodes is the number of nodes in the graph

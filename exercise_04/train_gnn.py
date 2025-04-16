@@ -21,7 +21,6 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
 from matplotlib import pyplot as plt
-from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 import torch.nn.functional as F
 from torch_geometric.data import Data, Batch
 from torch_geometric.nn import knn_graph, DynamicEdgeConv, global_mean_pool
@@ -135,7 +134,7 @@ def main():
     device = get_device()
     from models import GNNEncoder
 
-    n_edge_features, n_latent_edge_features = 2, 2
+    n_edge_features, n_latent_edge_features = 6, 6
 
     model = GNNEncoder(n_edge_features, n_latent_edge_features)
 
@@ -155,9 +154,11 @@ def main():
         train_loss = 0
         # currently no batches are run, needs dataloader
         for batch_idx, batch in enumerate(train_loader):
-            batch = batch.to(device)
-            pred = model(batch)
-            loss = criterion(pred, batch.y)
+            data, labels = batch
+            data = data.to(device)
+            labels = labels.to(device)
+            pred = model(data)
+            loss = criterion(pred, labels)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -170,8 +171,10 @@ def main():
         val_loss = 0
         with torch.no_grad():
             for batch in val_loader:
-                preds = model(batch)
-                loss = criterion(preds, batch.y)
+                data, labels = batch
+                data, labels = data.to(device), labels.to(device)
+                preds = model(data)
+                loss = criterion(preds, labels)
                 val_loss += loss.item()
         val_loss /= len(val_loader)
         scheduler.step(val_loss)
