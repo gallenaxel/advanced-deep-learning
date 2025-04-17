@@ -11,7 +11,7 @@ from torch_geometric.nn import knn_graph, DynamicEdgeConv, global_mean_pool, MLP
 # The output dimension of the MLP is the new feauture dimension of this graph layer.
 
 class GNNEncoder(nn.Module):
-    def __init__(self, n_edge_features, n_latent_edge_features, k=5, hidden_layers=None, output_dim=128, final_layers=None):
+    def __init__(self, n_edge_features, n_latent_edge_features, k=5, hidden_layers=None, final_layers=None):
         super(GNNEncoder, self).__init__()
 
         if hidden_layers is None:
@@ -26,7 +26,16 @@ class GNNEncoder(nn.Module):
         self.layer_list = [layer]
 
         self.final_mlp = nn.Sequential(
-            nn.LazyLinear(len(final_layers)),
+            nn.LazyLinear(64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 2),
+            nn.ReLU(),
         )
 
     def forward(self, data):
@@ -36,8 +45,7 @@ class GNNEncoder(nn.Module):
 
         # loop over the DynamicEdgeConv layers:
         for layer in self.layer_list:
-            x = layer(x.cpu(), batch.cpu()).to(x.device)
-            #x = layer(x, batch)
+            x = layer(x, batch)
 
         # the output of the last layer has dimensions (n_batch, n_nodes, graph_feature_dimension)
         # where n_batch is the number of graphs in the batch and n_nodes is the number of nodes in the graph

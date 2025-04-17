@@ -19,20 +19,19 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
+from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 import torch.nn.functional as F
-from torch_geometric.data import Data, Batch
-from torch_geometric.nn import knn_graph, DynamicEdgeConv, global_mean_pool
 
-from util import run_training_loop, get_device, EarlyStopping
+from util import get_device, EarlyStopping
 from data_utils import collate_fn_gnn
 
 DATA_PATH = "../datasets/iceCube/"  # path to the data
 
 batch_size = 30
 project_dir = "dev/"
-num_epochs = 5
+num_epochs = 100
 initial_lr = 0.0001
 
 
@@ -65,27 +64,49 @@ class AwkScaler:
             raise RuntimeError("Stupid user did not fit")
 
 
+
+train_dataset = awk.from_parquet(os.path.join(DATA_PATH, "train.pq"))
+label_x_scaler = AwkScaler()
+label_y_scaler = AwkScaler()
+label_x_scaler.fit(train_dataset["xpos"])
+label_y_scaler.fit(train_dataset["ypos"])
+
+time_scaler = AwkScaler()
+x_scaler = AwkScaler()
+y_scaler = AwkScaler()
+times = train_dataset["data"][:, 0:1, :]  # important to index the time dimension with 0:1 to keep this dimension (n_events, 1, n_hits)
+                                                # with [:,0,:] we would get a 2D array of shape (n_events, n_hits)
+x = train_dataset["data"][:, 1:2, :]
+y = train_dataset["data"][:, 2:3, :]
+time_scaler.fit(times)
+x_scaler.fit(x)
+y_scaler.fit(y)
+
+
+def scale_input(dataset):
+    """Open dataset, take apart and scale, put back together.
+
+    Args:
+        dataset (_type_): _description_
+
+    Returns:
+        _type_: _description_
+    """
+    times = dataset["data"][:, 0:1, :]
+    x = dataset["data"][:, 1:2, :]
+    y = dataset["data"][:, 2:3, :]
+    norm_times = time_scaler.transform(times)
+    norm_x = x_scaler.transform(x)
+    norm_y = y_scaler.transform(y)
+
+    return awk.concatenate([norm_times, norm_x, norm_y], axis=1)
+
 def main():
     train_dataset = awk.from_parquet(os.path.join(DATA_PATH, "train.pq"))
     val_dataset = awk.from_parquet(os.path.join(DATA_PATH, "val.pq"))
     test_dataset = awk.from_parquet(os.path.join(DATA_PATH, "test.pq"))
 
-    def scale_input(dataset):
-        """Open dataset, take apart and scale, put back together.
-
-        Args:
-            dataset (_type_): _description_
-
-        Returns:
-            _type_: _description_
-        """
-        times = dataset["data"][:, 0:1, :]
-        x = dataset["data"][:, 1:2, :]
-        y = dataset["data"][:, 2:3, :]
-        norm_times = time_scaler.transform(times)
-        norm_x = x_scaler.transform(x)
-        norm_y = y_scaler.transform(y)
-        return awk.concatenate([norm_times, norm_x, norm_y], axis=1)
+    
 
     times = train_dataset["data"][:, 0:1, :]  # important to index the time dimension with 0:1 to keep this dimension (n_events, 1, n_hits)
                                                 # with [:,0,:] we would get a 2D array of shape (n_events, n_hits)
@@ -120,7 +141,7 @@ def main():
     test_dataset["xpos"] = label_x_scaler.transform(test_dataset["xpos"])
     test_dataset["ypos"] = label_y_scaler.transform(test_dataset["ypos"])
 
-
+    # save all scalers 
 
     # Hint: You can define a helper function to normalize the data and you can use the same normalization for the validation and test datasets.
 
@@ -131,10 +152,11 @@ def main():
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_gnn)
 
 
-    device = get_device()
+    device = "cpu"#get_device()
+    print(device)
     from models import GNNEncoder
 
-    n_edge_features, n_latent_edge_features = 6, 6
+    n_edge_features, n_latent_edge_features = 6, 64
 
     model = GNNEncoder(n_edge_features, n_latent_edge_features)
 
@@ -153,12 +175,10 @@ def main():
     for epoch in tqdm(range(num_epochs)):
         train_loss = 0
         # currently no batches are run, needs dataloader
-        for batch_idx, batch in enumerate(train_loader):
-            data, labels = batch
-            data = data.to(device)
-            labels = labels.to(device)
-            pred = model(data)
-            loss = criterion(pred, labels)
+        for batch_idx, (batch_x, batch_y) in enumerate(train_loader):
+            batch_x = batch_x.to(device)
+            pred = model(batch_x)
+            loss = criterion(pred, batch_y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -170,11 +190,9 @@ def main():
         model.eval()
         val_loss = 0
         with torch.no_grad():
-            for batch in val_loader:
-                data, labels = batch
-                data, labels = data.to(device), labels.to(device)
-                preds = model(data)
-                loss = criterion(preds, labels)
+            for batch_x, batch_y in val_loader:
+                preds = model(batch_x)
+                loss = criterion(preds, batch_y)
                 val_loss += loss.item()
         val_loss /= len(val_loader)
         scheduler.step(val_loss)
