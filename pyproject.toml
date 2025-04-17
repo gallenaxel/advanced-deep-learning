@@ -3,7 +3,7 @@ name = "advanced-deep-learning"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = "~=3.11"
 dependencies = [
     "astropy>=7.0.1",
     "awkward>=2.8.1",
@@ -20,7 +20,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "tensorboard>=2.19.0",
     "tensorvision>=0.1.dev2",
-    "torch==2.5.0",
+    "torch==2.5.1",
     "torch-geometric>=2.6.1",
     "torchdiffeq>=0.2.5",
     "torchsummary>=1.5.1",
