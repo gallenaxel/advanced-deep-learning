@@ -90,7 +90,20 @@ def plot_distributions(args):
 
     plt.hist2d(x=np.array(x_data["xpos"]), y=np.array(x_data["ypos"]))
     #sns.pairplot(df, kind="hist", hue="type")
-    plt.savefig(f"{project_dir}/plots/truth_distribution.png")
+    plt.savefig(f"data_plots/truth_interaction_distribution.png")
+    plt.close()
+
+    plt.hist(awk.count(x_data["data"][:, 0:1, :], axis=2))
+    plt.savefig(f"data_plots/n_nodes_distribution.png")
+    plt.close()
+
+    for i, label in enumerate(["t", "x", "y"]):
+        plt.hist(awk.mean(x_data["data"][:, i:i+1, :], axis=2), label=label, histtype="step")
+    plt.legend(title="Mean of features per graph")
+    plt.savefig(f"data_plots/feature_means_distribution.png")
+    plt.close()
+    
+    
 
 
 def main():
