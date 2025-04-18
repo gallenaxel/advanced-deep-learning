@@ -14,7 +14,7 @@ plots/
 *_plots/
 *.png
 *.pdf
-
+dev/
 
 # datasets
 datasets/

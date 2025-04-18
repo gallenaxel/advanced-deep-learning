@@ -29,9 +29,9 @@ from data_utils import collate_fn_gnn
 
 DATA_PATH = "../datasets/iceCube/"  # path to the data
 
-batch_size = 30
+batch_size = 50
 project_dir = "dev/"
-num_epochs = 100
+num_epochs = 300
 initial_lr = 0.0001
 
 
@@ -198,9 +198,11 @@ def main():
         scheduler.step(val_loss)
         lr = scheduler.get_last_lr()[0]
 
-        if epoch > 0:
-            if val_loss < val_losses[-1]:
+        if epoch == 0:
+            torch.save(model.state_dict(), f"{project_dir}/best_model.pth")
+        elif val_loss < val_losses[-1]:
                 torch.save(model.state_dict(), f"{project_dir}/best_model.pth")
+                
         val_losses.append(val_loss)
         lrs.append(lr)
         stop = es_watcher.step(val_loss)
@@ -223,6 +225,34 @@ def main():
     plt.legend()
     plt.tight_layout()
     plt.savefig(f"{project_dir}/training_performance")
+    plt.close()
+    
+    
+    model.eval()
+    
+    test_dataset = awk.from_parquet(os.path.join(DATA_PATH, "test.pq"))
+    test_dataset["data"] = scale_input(test_dataset)
+    test_dataset["xpos"] = label_x_scaler.transform(test_dataset["xpos"])
+    test_dataset["ypos"] = label_y_scaler.transform(test_dataset["ypos"])
+
+    test_loader = DataLoader(test_dataset, batch_size=40, shuffle=False, collate_fn=collate_fn_gnn)
+    
+    y_pred_tensor = []
+    for batch_x, batch_y in test_loader:
+        batch_x = batch_x.to(device)
+        batch_y = batch_y.to(device)
+        predictions = model(batch_x)
+        y_pred_tensor.append(predictions.detach().cpu())
+
+    y_pred_tensor = torch.cat(y_pred_tensor,dim=0).squeeze()
+    y_pred_tensor[:, 0] = label_x_scaler.inverse_transform(y_pred_tensor[:, 0])
+    y_pred_tensor[:, 1] = label_y_scaler.inverse_transform(y_pred_tensor[:, 1])
+    plt.hist2d(x=y_pred_tensor[:, 0], y=y_pred_tensor[:, 1], bins=(30, 30))
+    plt.tight_layout()
+    #plt.legend()
+    plt.savefig(f"{project_dir}/plots/residuals.png")
+    plt.close()
+
 
 
 if __name__ == "__main__":

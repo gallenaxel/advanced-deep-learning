@@ -18,12 +18,12 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 from util import get_device
 from data_utils import collate_fn_gnn
 
-device = get_device()
+device = "cpu"#get_device()
  
 
 
-def predict_labels(args) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    project_dir = f"{args.normalizing_flow_type}/training_stuff_nf_solution"
+def predict_labels(args) -> tuple[torch.Tensor, torch.Tensor]:
+    project_dir = f"dev/"
     from models import GNNEncoder
     from train_gnn import project_dir, DATA_PATH, scale_input
     from train_gnn import label_x_scaler, label_y_scaler
@@ -32,8 +32,8 @@ def predict_labels(args) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     model = GNNEncoder(n_edge_features, n_latent_edge_features)
 
     model.load_state_dict(torch.load(f"{project_dir}/best_model.pth", weights_only=True))
-    model = model.to(device)
     model.eval()
+    model = model.to(device)
     
     test_dataset = awk.from_parquet(os.path.join(DATA_PATH, "test.pq"))
     test_dataset["data"] = scale_input(test_dataset)
@@ -58,7 +58,7 @@ def predict_labels(args) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
 
 def plot_residuals(args):
-    project_dir = f"dev/plots"
+    project_dir = f"dev/"
 
     y_pred, data = predict_labels(args)
     print("Predicted labels")
@@ -77,28 +77,20 @@ def plot_residuals(args):
     #    transform=ax.transAxes)
     plt.tight_layout()
     #plt.legend()
-    plt.savefig(f"{project_dir}/residuals.png")
+    plt.savefig(f"{project_dir}/plots/residuals.png")
     plt.close()
         
     return
 
 
 def plot_distributions(args):
-    project_dir = f"{args.normalizing_flow_type}/training_stuff_nf_solution"
+    project_dir = f"dev/"
 
-    y_pred, y_pred_ucert, y_data, x_data = predict_labels(args)
-    print(x_data.shape)
+    y_pred, x_data = predict_labels(args)
 
-    df_pred = pd.DataFrame(y_pred, columns=labelNames)
-    df_pred["type"] = "prediction"
-
-    df_data = pd.DataFrame(y_data, columns=labelNames)
-    df_data["type"] = "data"
-
-    df = pd.concat([df_data, df_pred])
-
-    sns.pairplot(df, kind="hist", hue="type")
-    plt.savefig(f"{project_dir}/test_distributions_comaprisons.png")
+    plt.hist2d(x=np.array(x_data["xpos"]), y=np.array(x_data["ypos"]))
+    #sns.pairplot(df, kind="hist", hue="type")
+    plt.savefig(f"{project_dir}/plots/truth_distribution.png")
 
 
 def main():
@@ -110,7 +102,7 @@ def main():
     )
     args = parser.parse_args()
     plot_residuals(args)
-    #plot_distributions(args)
+    plot_distributions(args)
 
 if __name__ == "__main__":
 

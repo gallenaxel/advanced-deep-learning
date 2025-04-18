@@ -35,3 +35,5 @@ for i in range(len(train_dataset['data'][0, 0])):
 print(f"The first event of the training dataset has the following hit times: {train_dataset['data'][0, 0]}")
 print(f"The first event of the training dataset has the following hit x positions: {train_dataset['data'][0, 1]}")
 print(f"The first event of the training dataset has the following hit y positions: {train_dataset['data'][0, 2]}")
+
+
