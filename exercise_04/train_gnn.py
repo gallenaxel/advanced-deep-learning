@@ -154,10 +154,6 @@ def main():
 
     device = "cpu"#get_device()
     print(device)
-    print("Train set dimension: ", train_dataset["data"].type)
-    print("Validation set dimension: ", val_dataset["data"].type)
-    print("Train set jagged array lengths: ", len([len(event) for event in train_dataset["data"]]))
-    print("Validation set jagged array lengths: ", len([len(event) for event in val_dataset["data"]]))
 
     from models import GNNEncoder
 

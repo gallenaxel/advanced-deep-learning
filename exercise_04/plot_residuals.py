@@ -121,17 +121,15 @@ def plot_distributions(args):
     fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
     # X Position subplot
-    axs[0].scatter(x=np.array(x_data["xpos"]), y=y_pred[:, 0], alpha=0.5, label="X Position")
+    axs[0].scatter(x=np.array(x_data["xpos"]), y=y_pred[:, 0], alpha=0.5)
     axs[0].set_xlabel("True X Position")
     axs[0].set_ylabel("Predicted X Position")
-    axs[0].legend()
     axs[0].set_title("Predicted vs True X Positions")
 
     # Y Position subplot
-    axs[1].scatter(x=np.array(x_data["ypos"]), y=y_pred[:, 1], alpha=0.5, label="Y Position")
+    axs[1].scatter(x=np.array(x_data["ypos"]), y=y_pred[:, 1], alpha=0.5)
     axs[1].set_xlabel("True Y Position")
     axs[1].set_ylabel("Predicted Y Position")
-    axs[1].legend()
     axs[1].set_title("Predicted vs True Y Positions")
 
     plt.tight_layout()
