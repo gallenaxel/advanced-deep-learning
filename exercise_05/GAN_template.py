@@ -11,7 +11,7 @@ import torch.optim as optim
 # FOR DATA LOADER
 from torch.utils.data import DataLoader
 # FOR TENSOR BOARD VISUALIZATION
-#from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
+from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 import matplotlib.pyplot as plt
 import os
 import pickle
@@ -20,7 +20,7 @@ import pickle
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 lr = 3e-4
 batchSize = 32  # Batch size
-numEpochs = 3
+numEpochs = 300
 logStep = 625  # the number of steps to log the images and losses to tensorboard
 
 project_dir = "dev/"
@@ -147,7 +147,7 @@ def main():
 
             fixed_noise = torch.randn(32, latent_dimension).to(device)
             # print the progress
-            print(f"\rEpoch [{epoch}/{numEpochs}] Batch {batch_idx}/{len(loader)} \ Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
+            print(f"\r Epoch [{epoch}/{numEpochs}] Batch {batch_idx}/{len(loader)} | Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
 
             # Log the losses and example images to tensorboard
             if batch_idx % logStep == 0:
@@ -161,10 +161,19 @@ def main():
                     imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
                     imgGridReal = torchvision.utils.make_grid(data, normalize=True)
 
-                    # TODO: add the images and losses to tensorboard
-                    # HINT: use the SummaryWriter to add the images and scalars to tensorboard
-                    # HINT: use the `add_image` method to add the images to tensorboard
-                    # HINT: use the `add_scalar` method to add the losses to tensorboard
+                    # Initialize SummaryWriter for TensorBoard
+                    writer = SummaryWriter(log_dir=project_dir)
+
+                    # Add images to TensorBoard
+                    writer.add_image("Fake Images", imgGridFake, global_step=step)
+                    writer.add_image("Real Images", imgGridReal, global_step=step)
+
+                    # Add losses to TensorBoard
+                    writer.add_scalar("Loss/Discriminator", loss_discriminator.item(), global_step=step)
+                    writer.add_scalar("Loss/Generator", loss_generator.item(), global_step=step)
+
+                    # Close the writer
+                    writer.close()
 
                     # increment step
                     step += 1
