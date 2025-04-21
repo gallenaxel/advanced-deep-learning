@@ -12,6 +12,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 # FOR TENSOR BOARD VISUALIZATION
 #from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
+import matplotlib.pyplot as plt
+import os
+import pickle
 
 # Hyperparameters
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
@@ -20,6 +23,10 @@ batchSize = 32  # Batch size
 numEpochs = 3
 logStep = 625  # the number of steps to log the images and losses to tensorboard
 
+project_dir = "dev/"
+# Create the directory if it does not exist
+if not os.path.exists(project_dir):
+    os.makedirs(project_dir)
 latent_dimension = 128 # 64, 128, 256
 # for simplicity we will flatten the image to a vector and to use simple MLP networks
 # 28 * 28 * 1 flattens to 784
@@ -70,88 +77,118 @@ class Discriminator(nn.Module):
     def forward(self, x):
         return self.disc(x)
 
+def main():
+    # initialize networks and optimizers
+    discriminator = Discriminator().to(device)
+    generator = Generator().to(device)
+    opt_discriminator = optim.Adam(discriminator.parameters(), lr=lr)
+    opt_generator = optim.Adam(generator.parameters(), lr=lr)
 
-# initialize networks and optimizers
-discriminator = Discriminator().to(device)
-generator = Generator().to(device)
-opt_discriminator = optim.Adam(discriminator.parameters(), lr=lr)
-opt_generator = optim.Adam(generator.parameters(), lr=lr)
+    # This is a binary classification task, so we use Binary Cross Entropy Loss
+    criterion = nn.BCELoss()
+    disc_losses = []
+    gen_losses = []
+    lrs = []
 
-# This is a binary classification task, so we use Binary Cross Entropy Loss
-criterion = nn.BCELoss()
+    # Training Loop
+    step = 0
+    print("Started Training and visualization...")
+    for epoch in range(numEpochs):
+        # loop over batches
+        epoch_discriminator_loss = 0
+        epoch_generator_loss = 0
+        for batch_idx, (real, _) in enumerate(loader):
+            # First we train the discriminator on real images vs. generated images
 
+            # Get the real images and flatten them
+            # for simplicity, we flatten the image to a vector and to use simple MLP networks
+            # 28 * 28 * 1 flattens to 784
+            real = real.view(-1, 784).to(device)
+            batch_size = real.shape[0]
 
-# Training Loop
-step = 0
-print("Started Training and visualization...")
-for epoch in range(numEpochs):
-    # loop over batches
-    print()
-    for batch_idx, (real, _) in enumerate(loader):
-        # First we train the discriminator on real images vs. generated images
+            # Step 1) generate fake images
+            noise = torch.randn(batch_size, latent_dimension).to(device)
+            fake = generator(noise)
 
-        # Get the real images and flatten them
-        # for simplicity, we flatten the image to a vector and to use simple MLP networks
-        # 28 * 28 * 1 flattens to 784
-        real = real.view(-1, 784).to(device)
-        batch_size = real.shape[0]
+            # Step 2) Train Discriminator:
+            # - predict the discriminator output for real images
+            real_labels = torch.ones(batch_size, 1, device=device)
+            output_real = discriminator(real)
+            loss_real = criterion(output_real, real_labels)
 
-        # Step 1) generate fake images
-        noise = torch.randn(batch_size, latent_dimension).to(device)
-        fake = generator(noise)
+            # - predict the discriminator output for fake images
+            fake_labels = torch.zeros(batch_size, 1, device=device)
+            output_fake = discriminator(fake.detach())
+            loss_fake = criterion(output_fake, fake_labels)
 
-        # Step 2) Train Discriminator:
-        # - predict the discriminator output for real images
-        real_labels = torch.ones(batch_size, 1, device=device)
-        output_real = discriminator(real)
-        loss_real = criterion(output_real, real_labels)
+            # - calculate the total loss for the discriminator
+            loss_discriminator = (loss_real + loss_fake) / 2
 
-        # - predict the discriminator output for fake images
-        fake_labels = torch.zeros(batch_size, 1, device=device)
-        output_fake = discriminator(fake.detach())
-        loss_fake = criterion(output_fake, fake_labels)
+            # - now update the weights of the discriminator by backpropagating the loss
+            opt_discriminator.zero_grad()
+            loss_discriminator.backward() 
+            opt_discriminator.step()
 
-        # - calculate the total loss for the discriminator
-        loss_discriminator = (loss_real + loss_fake) / 2
+            # Train Generator:
+            # Pass the fake images through the discriminator
+            output_fake = discriminator(fake)
 
-        # - now update the weights of the discriminator by backpropagating the loss
-        opt_discriminator.zero_grad()
-        loss_discriminator.backward() 
-        opt_discriminator.step()
+            # Calculate the loss for the generator
+            # We want the discriminator to classify the fake images as real (label = 1)
+            loss_generator = criterion(output_fake, real_labels)
 
-        # Train Generator:
-        # Pass the fake images through the discriminator
-        output_fake = discriminator(fake)
+            # Update the weights of the generator
+            opt_generator.zero_grad()
+            loss_generator.backward()
+            opt_generator.step()
 
-        # Calculate the loss for the generator
-        # We want the discriminator to classify the fake images as real (label = 1)
-        loss_generator = criterion(output_fake, real_labels)
+            epoch_discriminator_loss += loss_discriminator.item()
+            epoch_generator_loss += loss_generator.item()
 
-        # Update the weights of the generator
-        opt_generator.zero_grad()
-        loss_generator.backward()
-        opt_generator.step()
+            fixed_noise = torch.randn(32, latent_dimension).to(device)
+            # print the progress
+            print(f"\rEpoch [{epoch}/{numEpochs}] Batch {batch_idx}/{len(loader)} \ Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
 
-        fixed_noise = torch.randn(32, latent_dimension).to(device)
-        # print the progress
-        print(f"\rEpoch [{epoch}/{numEpochs}] Batch {batch_idx}/{len(loader)} \ Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
+            # Log the losses and example images to tensorboard
+            if batch_idx % logStep == 0:
+                with torch.no_grad():
+                    # Generate noise via Generator, we always use the same noise to see the progression
+                    # Generate fixed noise for consistent visualization
+                    fake = generator(fixed_noise).reshape(-1, 1, 28, 28)
+                    # Get real data
+                    data = real.reshape(-1, 1, 28, 28)
+                    # make grid of pictures and add to tensorboard
+                    imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
+                    imgGridReal = torchvision.utils.make_grid(data, normalize=True)
 
-        # Log the losses and example images to tensorboard
-        if batch_idx % logStep == 0:
-            with torch.no_grad():
-                # Generate noise via Generator, we always use the same noise to see the progression
-                # Generate fixed noise for consistent visualization
-                fake = generator(fixed_noise).reshape(-1, 1, 28, 28)
-                # Get real data
-                data = real.reshape(-1, 1, 28, 28)
-                # make grid of pictures and add to tensorboard
-                imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
-                imgGridReal = torchvision.utils.make_grid(data, normalize=True)
+                    # TODO: add the images and losses to tensorboard
+                    # HINT: use the SummaryWriter to add the images and scalars to tensorboard
+                    # HINT: use the `add_image` method to add the images to tensorboard
+                    # HINT: use the `add_scalar` method to add the losses to tensorboard
 
-                # TODO: add the images and losses to tensorboard
-                # HINT: use the SummaryWriter to add the images and scalars to tensorboard
-                # HINT: use the `add_image` method to add the images to tensorboard
-                # HINT: use the `add_scalar` method to add the losses to tensorboard
+                    # increment step
+                    step += 1
 
-                # increment step
-                step += 1
+        disc_losses.append(epoch_discriminator_loss / len(loader))
+        gen_losses.append(epoch_generator_loss / len(loader))
+        training_metrics = {
+            "disc_loss": disc_losses,
+            "gen_loss": gen_losses,
+            "lrs": lrs,
+        }
+        with open(f"{project_dir}/training_metrics.pickle", 'wb') as f:
+            pickle.dump(training_metrics, f)
+
+        # Plot discriminator and generator losses separately
+        plt.figure(figsize=(10, 5))
+        plt.plot(disc_losses, label="Discriminator Loss")
+        plt.plot(gen_losses, label="Generator Loss")
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(f"{project_dir}/training_performance.png")
+        plt.close()
+
+if __name__ == "__main__":
+    main()
