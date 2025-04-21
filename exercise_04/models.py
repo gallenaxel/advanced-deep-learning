@@ -15,15 +15,23 @@ class GNNEncoder(nn.Module):
         super(GNNEncoder, self).__init__()
 
         if hidden_layers is None:
-            hidden_layers = [32]
+            hidden_layers = [64,128]
         if final_layers is None:
-            final_layers = [32]
-        layer = DynamicEdgeConv(
-                    MLP([n_edge_features, *hidden_layers, n_latent_edge_features]),
-                    aggr='mean', k=k,  # k is the number of nearest neighbors to consider
-                )
+            final_layers = [64,128]
 
-        self.layer_list = [layer]
+        # First DynamicEdgeConv layer
+        layer1 = DynamicEdgeConv(
+            MLP([n_edge_features, *hidden_layers, n_latent_edge_features]),
+            aggr='mean', k=k
+        )
+
+        # Second DynamicEdgeConv layer
+        layer2 = DynamicEdgeConv(
+            MLP([n_latent_edge_features*2, *hidden_layers, n_latent_edge_features]),
+            aggr='mean', k=k
+        )
+
+        self.layer_list = [layer1, layer2]
 
         self.final_mlp = nn.Sequential(
             nn.LazyLinear(64),

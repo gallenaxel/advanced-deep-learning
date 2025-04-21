@@ -21,7 +21,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
-from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
+#from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 import torch.nn.functional as F
 
 from util import get_device, EarlyStopping
@@ -154,6 +154,11 @@ def main():
 
     device = "cpu"#get_device()
     print(device)
+    print("Train set dimension: ", train_dataset["data"].type)
+    print("Validation set dimension: ", val_dataset["data"].type)
+    print("Train set jagged array lengths: ", len([len(event) for event in train_dataset["data"]]))
+    print("Validation set jagged array lengths: ", len([len(event) for event in val_dataset["data"]]))
+
     from models import GNNEncoder
 
     n_edge_features, n_latent_edge_features = 6, 64
