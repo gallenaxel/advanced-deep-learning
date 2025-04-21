@@ -11,13 +11,13 @@ import torch.optim as optim
 # FOR DATA LOADER
 from torch.utils.data import DataLoader
 # FOR TENSOR BOARD VISUALIZATION
-from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
+#from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 
 # Hyperparameters
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 lr = 3e-4
 batchSize = 32  # Batch size
-numEpochs = 100
+numEpochs = 3
 logStep = 625  # the number of steps to log the images and losses to tensorboard
 
 latent_dimension = 128 # 64, 128, 256
@@ -43,9 +43,10 @@ class Generator(nn.Module):
     def __init__(self):
         super().__init__()
         self.gen = nn.Sequential(
-            nn.Linear(latent_dimension, ...) #TODO define a suitable hidden dimension
-            ... #TODO define a suitable network architecture for the generator
-            nn.Tanh(),  # It is helpful to use the tanh activation function to force the ouput into the [-1,1] range that our normalized images have.
+            nn.Linear(latent_dimension, 256),  # Example hidden dimension
+            nn.ReLU(),
+            nn.Linear(256, image_dimension),
+            nn.Tanh()  # It is helpful to use the tanh activation function to force the output into the [-1,1] range that our normalized images have.
         )
 
     def forward(self, x):
@@ -60,8 +61,10 @@ class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
         self.disc = nn.Sequential(
-            nn.Linear(image_dimension, ...) #TODO define a suitable hidden dimension
-            ... #TODO define a suitable network architecture for the discriminator,
+            nn.Linear(image_dimension, 256),  # Example hidden dimension
+            nn.LeakyReLU(0.2),
+            nn.Linear(256, 1),  # Output layer for binary classification
+            nn.Sigmoid()  # Sigmoid activation for binary classification
         )
 
     def forward(self, x):
@@ -99,35 +102,37 @@ for epoch in range(numEpochs):
 
         # Step 2) Train Discriminator:
         # - predict the discriminator output for real images
-        # - real images are labeled as 1
-        # - calculate the loss for real images
+        real_labels = torch.ones(batch_size, 1, device=device)
+        output_real = discriminator(real)
+        loss_real = criterion(output_real, real_labels)
 
         # - predict the discriminator output for fake images
-        # -fake images are labeled as 0
-        # -calculate the loss for fake images
+        fake_labels = torch.zeros(batch_size, 1, device=device)
+        output_fake = discriminator(fake.detach())
+        loss_fake = criterion(output_fake, fake_labels)
 
-        # -average the loss for real and fake images
+        # - calculate the total loss for the discriminator
+        loss_discriminator = (loss_real + loss_fake) / 2
 
-        # - now upadate the weights of the discriminator by backpropagating the loss through the discriminator
-        # the generator is not updated in this step
-        # HINT: call the `backward` method of the discriminator with the argument `retain_graph=True` to keep the computational graph
-        # this is necessary because we will use the same discriminator to train the generator
+        # - now update the weights of the discriminator by backpropagating the loss
+        opt_discriminator.zero_grad()
+        loss_discriminator.backward() 
+        opt_discriminator.step()
 
         # Train Generator:
-        # Now train the generator by generating fake images and passing them through the discriminator
-        # You can do a little trick and modify the original objective function of
-        # "minimizing the probability of the discriminator predicting the fake images as fake"
-        # to "maximizing the probability of the discriminator predicting the fake images as real"
-        # this leads to a faster training of the generator when it does not represent the real data well
-        # this is a common trick in GANs
-        # for moer information see section 17.1.2 of the book Deep Learning by Bishop and Bishop
+        # Pass the fake images through the discriminator
+        output_fake = discriminator(fake)
 
-        # Todo:
-        # - pass the fake images through the discriminator
-        # - calculate the loss (by passing the output of the discriminator through the criterion with labels set to 1 (real images
-        # - update the weights of the generator
+        # Calculate the loss for the generator
+        # We want the discriminator to classify the fake images as real (label = 1)
+        loss_generator = criterion(output_fake, real_labels)
 
+        # Update the weights of the generator
+        opt_generator.zero_grad()
+        loss_generator.backward()
+        opt_generator.step()
 
+        fixed_noise = torch.randn(32, latent_dimension).to(device)
         # print the progress
         print(f"\rEpoch [{epoch}/{numEpochs}] Batch {batch_idx}/{len(loader)} \ Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
 
@@ -135,6 +140,7 @@ for epoch in range(numEpochs):
         if batch_idx % logStep == 0:
             with torch.no_grad():
                 # Generate noise via Generator, we always use the same noise to see the progression
+                # Generate fixed noise for consistent visualization
                 fake = generator(fixed_noise).reshape(-1, 1, 28, 28)
                 # Get real data
                 data = real.reshape(-1, 1, 28, 28)
