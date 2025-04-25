@@ -80,10 +80,10 @@ class GAN:
         self.current_epoch_discriminator_loss = 0
         self.current_epoch_generator_loss = 0
 
-    def update_generator(self, generator_output, real):
+    def update_generator(self, classification_score, real):
         batch_size = real.shape[0]
         real_labels = torch.ones(batch_size, 1, device=device)
-        loss_generator = self.config.criterion(generator_output, real_labels)
+        loss_generator = self.config.criterion(classification_score, real_labels)
 
         # Update the weights of the generator
         self.opt_generator.zero_grad()
@@ -92,7 +92,7 @@ class GAN:
 
         return loss_generator
     
-    def update_discriminator(self, real, fake):
+    def update_discriminator(self, generator_output, real):
         batch_size = real.shape[0]
         real_labels = torch.ones(batch_size, 1, device=device)
         output_real = self.discriminator(real)
@@ -100,7 +100,7 @@ class GAN:
 
         # - predict the discriminator output for fake images
         fake_labels = torch.zeros(batch_size, 1, device=device)
-        output_fake = self.discriminator(fake.detach())
+        output_fake = self.discriminator(generator_output.detach())
         loss_fake = self.config.criterion(output_fake, fake_labels)
 
         # - calculate the total loss for the discriminator
@@ -121,15 +121,15 @@ class GAN:
         fake = self.generator(noise)
 
         # - calculate the total loss for the discriminator
-        loss_discriminator = self.update_discriminator(real, fake)
+        loss_discriminator = self.update_discriminator(fake, real)
 
         # Train Generator:
         # Pass the fake images through the discriminator
-        output_fake = self.discriminator(fake)
+        generator_output_classification_score = self.discriminator(fake)
 
         # Calculate the loss for the generator
         # We want the discriminator to classify the fake images as real (label = 1)
-        loss_generator = self.update_generator(output_fake, real)
+        loss_generator = self.update_generator(generator_output_classification_score, real)
 
         self.current_epoch_discriminator_loss += loss_discriminator.item()
         self.current_epoch_generator_loss += loss_generator.item()
