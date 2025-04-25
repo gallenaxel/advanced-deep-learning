@@ -20,7 +20,7 @@ import pickle
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
 lr = 3e-4
 batchSize = 32  # Batch size
-numEpochs = 300
+numEpochs = 100
 logStep = 625  # the number of steps to log the images and losses to tensorboard
 
 project_dir = "dev/"
@@ -35,13 +35,20 @@ image_dimension = 28 * 28 * 1  # 784
 
 # we define a tranform that converts the image to tensor and normalizes it with mean and std of 0.5
 # which will convert the image range from [0, 1] to [-1, 1]
-myTransforms = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,), (0.5,))])
+myTransforms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize((0.5,), (0.5,))])
 
 # the MNIST dataset is available through torchvision.datasets
 print("loading MNIST digits dataset")
-dataset = datasets.MNIST(root="dataset/", transform=myTransforms, download=True)
+dataset = datasets.MNIST(root="../datasets/MNIST_transformed/",
+                         transform=myTransforms,
+                         download=True,
+                         )
 # let's create a dataloader to load the data in batches
 loader = DataLoader(dataset, batch_size=batchSize, shuffle=True)
+
+fixed_noise = torch.randn(32, latent_dimension).to(device)
+
 
 class Generator(nn.Module):
     """
@@ -145,7 +152,6 @@ def main():
             epoch_discriminator_loss += loss_discriminator.item()
             epoch_generator_loss += loss_generator.item()
 
-            fixed_noise = torch.randn(32, latent_dimension).to(device)
             # print the progress
             print(f"\r Epoch [{epoch}/{numEpochs}] Batch {batch_idx}/{len(loader)} | Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
 
@@ -162,7 +168,7 @@ def main():
                     imgGridReal = torchvision.utils.make_grid(data, normalize=True)
 
                     # Initialize SummaryWriter for TensorBoard
-                    writer = SummaryWriter(log_dir=project_dir)
+                    writer = SummaryWriter(log_dir=os.path.join(project_dir, "tb_logs"))
 
                     # Add images to TensorBoard
                     writer.add_image("Fake Images", imgGridFake, global_step=step)
@@ -197,6 +203,8 @@ def main():
         plt.legend()
         plt.tight_layout()
         plt.savefig(f"{project_dir}/training_performance.png")
+        plt.xlim(0, numEpochs+1)
+        plt.savefig(f"{project_dir}/loss_animation/training_performance_animation_{epoch}.png")
         plt.close()
 
 if __name__ == "__main__":
