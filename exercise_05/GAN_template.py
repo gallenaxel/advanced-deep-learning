@@ -57,7 +57,7 @@ class GANConfig:
     logStep: int = 625
     project_dir: str = "dev/"
     criterion: callable = nn.BCELoss()
-    
+
     def __post_init__(self):
         if not os.path.exists(self.project_dir):
             os.makedirs(self.project_dir)
@@ -91,7 +91,7 @@ class GAN:
         self.opt_generator.step()
 
         return loss_generator
-    
+
     def update_discriminator(self, generator_output, real):
         batch_size = real.shape[0]
         real_labels = torch.ones(batch_size, 1, device=device)
@@ -137,8 +137,8 @@ class GAN:
         # print the progress
         print(f"\r Epoch [{epoch}/{self.config.numEpochs}] Batch {batch_idx}/{len(loader)} | Loss discriminator: {loss_discriminator:.4f}, loss generator: {loss_generator:.4f}", end="")
         if batch_idx % self.config.logStep == 0:
-            self.run_examples(loss_discriminator, loss_generator)
-        
+            self.run_logStep(loss_discriminator, loss_generator)
+
     def end_epoch(self, epoch):
         self.disc_losses.append(self.current_epoch_discriminator_loss / len(loader))
         self.gen_losses.append(self.current_epoch_generator_loss / len(loader))
@@ -164,9 +164,8 @@ class GAN:
         plt.xlim(0, self.config.numEpochs+1)
         plt.savefig(f"{self.config.project_dir}/loss_animation/training_performance_animation_{epoch}.png")
         plt.close()
-        
-        
-    def run_examples(self, loss_discriminator, loss_generator):
+
+    def run_logStep(self, loss_discriminator, loss_generator):
         with torch.no_grad():
             # Generate noise via Generator, we always use the same noise to see the progression
             # Generate fixed noise for consistent visualization
@@ -175,7 +174,6 @@ class GAN:
             # make grid of pictures and add to tensorboard
             imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
             torchvision.utils.save_image(fake, f"{self.config.project_dir}/example_images/step{self.step}.png")
-
 
             # Initialize SummaryWriter for TensorBoard
             writer = SummaryWriter(log_dir=os.path.join(self.config.project_dir, "tb_logs"))
@@ -193,6 +191,14 @@ class GAN:
             # increment step
             self.step += 1
 
+    def generate_sample_grid(self, name):
+        noise = torch.randn(32, latent_dimension).to(device)
+        fake = self.generator(noise).reshape(-1, 1, 28, 28)
+        # Get real data
+        # make grid of pictures and add to tensorboard
+        imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
+        torchvision.utils.save_image(fake, f"{self.config.project_dir}/final_example_{name}.png")
+
 
 def main():
     config = GANConfig(device)
@@ -205,6 +211,9 @@ def main():
         for batch_idx, (real, _) in enumerate(loader):
             gan.run_batch(real, batch_idx, epoch)
         gan.end_epoch(epoch)
+
+    for i in range(5):
+        gan.generate_sample_grid(i)
 
 if __name__ == "__main__":
     main()
