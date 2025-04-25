@@ -1,3 +1,6 @@
+import os
+import pickle
+
 import torchvision
 # For image transforms
 from torchvision import transforms
@@ -13,8 +16,9 @@ from torch.utils.data import DataLoader
 # FOR TENSOR BOARD VISUALIZATION
 from torch.utils.tensorboard import SummaryWriter # to print to tensorboard
 import matplotlib.pyplot as plt
-import os
-import pickle
+
+
+from models import Generator, Discriminator
 
 # Hyperparameters
 device = "mps" if torch.backends.mps.is_available() else "cuda" if torch.cuda.is_available() else "cpu"
@@ -27,7 +31,7 @@ project_dir = "dev/"
 # Create the directory if it does not exist
 if not os.path.exists(project_dir):
     os.makedirs(project_dir)
-latent_dimension = 128 # 64, 128, 256
+latent_dimension = 64 # 64, 128, 256
 # for simplicity we will flatten the image to a vector and to use simple MLP networks
 # 28 * 28 * 1 flattens to 784
 # you are also free to use CNNs
@@ -50,44 +54,10 @@ loader = DataLoader(dataset, batch_size=batchSize, shuffle=True)
 fixed_noise = torch.randn(32, latent_dimension).to(device)
 
 
-class Generator(nn.Module):
-    """
-    Generator Model
-    """
-    def __init__(self):
-        super().__init__()
-        self.gen = nn.Sequential(
-            nn.Linear(latent_dimension, 256),  # Example hidden dimension
-            nn.ReLU(),
-            nn.Linear(256, image_dimension),
-            nn.Tanh()  # It is helpful to use the tanh activation function to force the output into the [-1,1] range that our normalized images have.
-        )
-
-    def forward(self, x):
-        return self.gen(x)
-
-
-
-class Discriminator(nn.Module):
-    """
-    Discriminator Model
-    """
-    def __init__(self):
-        super().__init__()
-        self.disc = nn.Sequential(
-            nn.Linear(image_dimension, 256),  # Example hidden dimension
-            nn.LeakyReLU(0.2),
-            nn.Linear(256, 1),  # Output layer for binary classification
-            nn.Sigmoid()  # Sigmoid activation for binary classification
-        )
-
-    def forward(self, x):
-        return self.disc(x)
-
 def main():
     # initialize networks and optimizers
-    discriminator = Discriminator().to(device)
-    generator = Generator().to(device)
+    discriminator = Discriminator(image_dimension).to(device)
+    generator = Generator(image_dimension, latent_dimension).to(device)
     opt_discriminator = optim.Adam(discriminator.parameters(), lr=lr)
     opt_generator = optim.Adam(generator.parameters(), lr=lr)
 
@@ -133,7 +103,7 @@ def main():
 
             # - now update the weights of the discriminator by backpropagating the loss
             opt_discriminator.zero_grad()
-            loss_discriminator.backward() 
+            loss_discriminator.backward()
             opt_discriminator.step()
 
             # Train Generator:
@@ -165,6 +135,9 @@ def main():
                     data = real.reshape(-1, 1, 28, 28)
                     # make grid of pictures and add to tensorboard
                     imgGridFake = torchvision.utils.make_grid(fake, normalize=True)
+
+                    torchvision.utils.save_image(fake, f"{project_dir}/example_images/step{step}.png")
+
                     imgGridReal = torchvision.utils.make_grid(data, normalize=True)
 
                     # Initialize SummaryWriter for TensorBoard
@@ -177,6 +150,8 @@ def main():
                     # Add losses to TensorBoard
                     writer.add_scalar("Loss/Discriminator", loss_discriminator.item(), global_step=step)
                     writer.add_scalar("Loss/Generator", loss_generator.item(), global_step=step)
+
+
 
                     # Close the writer
                     writer.close()
