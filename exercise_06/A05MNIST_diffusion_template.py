@@ -1,6 +1,9 @@
 import sys
 sys.path.append("../")
 import os
+
+from tqdm import tqdm
+
 import torchvision
 # For image transforms
 from torchvision import transforms
@@ -19,6 +22,9 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import pickle
 
+from util import get_device
+
+device = get_device()
 
 # Hyperparameters
 LEARNING_RATE = 4e-4
@@ -50,18 +56,18 @@ DIM_MULTS = (1, 2, 5)
 model = Unet(
     dim = DIM,
     dim_mults = DIM_MULTS,
-    flash_attn = False,
+    flash_attn = True,
     channels = 1
-)
+)#.to(device)
 
 diffusion = GaussianDiffusion(
     model,
     image_size = IMAGE_SIZE,
     timesteps = TIME_STEPS,           # number of steps
     sampling_timesteps = SAMPLING_TIMESTEPS    # number of sampling timesteps (using ddim for faster inference [see ddim paper])
-)
+)#.to(device)
 
-optim = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
+optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE)
 
 model_dir = "./saved_models"
 os.makedirs(model_dir, exist_ok=True)

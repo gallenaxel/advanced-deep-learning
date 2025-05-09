@@ -55,12 +55,18 @@ class GANConfig:
     batchSize: int = 32  # Batch size
     numEpochs: int = 100
     logStep: int = 625
-    project_dir: str = "dev/"
+    project_dir: str = "sol_adjust_beta/"
     criterion: callable = nn.BCELoss()
+    betas_discr: tuple = (0.5, 0.999)
+    betas_gen: tuple = (0.5, 0.999)
+
 
     def __post_init__(self):
+        output_dirs = ["loss_animation", "example_images"]
         if not os.path.exists(self.project_dir):
             os.makedirs(self.project_dir)
+            for out_dir in output_dirs:
+                os.makedirs(os.path.join(self.project_dir, out_dir))
 
 class GAN:
     def __init__(self, generator: nn.Module,
@@ -70,8 +76,8 @@ class GAN:
         self.generator = generator
         self.discriminator = discriminator
         self.config = config
-        self.opt_discriminator = optim.Adam(self.discriminator.parameters(), lr=config.lr)
-        self.opt_generator = optim.Adam(self.generator.parameters(), lr=config.lr)
+        self.opt_discriminator = optim.Adam(self.discriminator.parameters(), lr=config.lr,betas=config.betas_discr)
+        self.opt_generator = optim.Adam(self.generator.parameters(), lr=config.lr, betas=config.betas_gen)
         self.current_epoch = 0
         self.step = 0
         self.disc_losses = []
