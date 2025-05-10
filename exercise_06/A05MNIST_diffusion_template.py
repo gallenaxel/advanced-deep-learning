@@ -25,6 +25,8 @@ import pickle
 from util import get_device
 
 device = get_device()
+output_dir = "./sampled_images"
+os.makedirs(output_dir, exist_ok=True)
 
 # Hyperparameters
 LEARNING_RATE = 4e-4
@@ -113,6 +115,12 @@ else:
         torch.save(model.state_dict(), model_path)
         print(f"Model saved to {model_path}")
 
+        # Save sampled images as a grid after each epoch
+        sampled_images = diffusion.sample(batch_size=10)
+        grid_path = os.path.join(output_dir, f"sampled_grid_epoch_{epoch+1}.png")
+        torchvision.utils.save_image(sampled_images, grid_path, nrow=5, normalize=True)
+        print(f"Sampled image grid for epoch {epoch+1} saved to {grid_path}.")
+
     # Save training metrics
     metrics = {
         "train_losses": train_losses,
@@ -136,8 +144,6 @@ model.eval()
 sampled_images = diffusion.sample(batch_size=10)
 print("Sampled images generated.")
 
-output_dir = "./sampled_images"
-os.makedirs(output_dir, exist_ok=True)
 grid_path = os.path.join(output_dir, "sampled_grid.png")
 torchvision.utils.save_image(sampled_images, grid_path, nrow=5, normalize=True)
 print(f"Sampled image grid saved to {grid_path}.")
