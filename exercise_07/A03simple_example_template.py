@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import torch.nn as nn
+
 import torch
 import seaborn as sns  # a useful plotting library on top of matplotlib
 from tqdm.auto import tqdm # a nice progress bar
@@ -25,7 +27,7 @@ dataset_validation = data_distribution.sample(torch.Size([1000])) # create valid
 # but feel free to play with them
 TIME_STEPS = 250
 BETA = torch.tensor(0.02)
-N_EPOCHS = 1000
+N_EPOCHS = 1#1000
 BATCH_SIZE = 64
 LEARNING_RATE = 0.8e-4
 
@@ -112,6 +114,8 @@ def sample_reverse(g, count):
     x : torch.Tensor
         The final sample from the model
     """
+    
+    x = torch.rand((count))
     g.eval()
     with torch.no_grad():
         # Step 1: Initialize x_T ~ N(0, I)
