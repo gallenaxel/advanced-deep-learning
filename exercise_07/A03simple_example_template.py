@@ -17,6 +17,7 @@ data_distribution = torch.distributions.mixture_same_family.MixtureSameFamily(
 )
 
 dataset = data_distribution.sample(torch.Size([10000]))  # create training data set
+
 dataset_validation = data_distribution.sample(torch.Size([1000])) # create validation data set
 # fig, ax = plt.subplots(1, 1)
 # sns.histplot(dataset)
@@ -27,7 +28,7 @@ dataset_validation = data_distribution.sample(torch.Size([1000])) # create valid
 # but feel free to play with them
 TIME_STEPS = 250
 BETA = torch.tensor(0.02)
-N_EPOCHS = 1#1000
+N_EPOCHS = 1000
 BATCH_SIZE = 64
 LEARNING_RATE = 0.8e-4
 
@@ -40,16 +41,24 @@ class SimpleDiffusion(torch.nn.Module):
     def __init__(self):
         super(SimpleDiffusion, self).__init__()
         self.net = torch.nn.Sequential(
-            torch.nn.Linear(2, 128),  # input: data + time step
+            torch.nn.Linear(2, 32),  # input: data + time step
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 128),
+            torch.nn.Linear(32, 64),
             torch.nn.ReLU(),
-            torch.nn.Linear(128, 1)  # output: predicted noise
+            torch.nn.Linear(64, 64),
+            torch.nn.ReLU(),
+            torch.nn.Linear(64, 32),
+            torch.nn.ReLU(),
+            torch.nn.Linear(32, 32),
+            torch.nn.ReLU(),
+            torch.nn.Linear(32, 16),
+            torch.nn.ReLU(),
+            torch.nn.Linear(16, 1)  # output: predicted noise
         )
 
-    def forward(self, x, t):
+    def forward(self, x: torch.Tensor, t: torch.Tensor):
         # concatenate the data and time step as inputs
-        x_t = torch.cat([x.view(-1, 1), t.view(-1, 1).expand(x.size(0), 1)], dim=1)
+        x_t = torch.stack((x, t), dim=1)
         return self.net(x_t)
 
 g = SimpleDiffusion()
@@ -60,8 +69,7 @@ for e in epochs: # loop over epochs
     indices = torch.randperm(dataset.shape[0])
     shuffled_dataset = dataset[indices]
     for i in range(0, shuffled_dataset.shape[0] - BATCH_SIZE, BATCH_SIZE):
-        x0 = shuffled_dataset[i:i + BATCH_SIZE]
-
+        x0 = shuffled_dataset[i:i + BATCH_SIZE].squeeze()#.unsqueeze(0)
         # here, implement algorithm 1 of the DDPM paper (https://arxiv.org/abs/2006.11239)
 
         # Step 1: Sample noise
@@ -72,8 +80,8 @@ for e in epochs: # loop over epochs
         alpha_bar = torch.cumprod(alpha.repeat(TIME_STEPS), dim=0)
 
         # Step 3: Forward diffusion process
-        t = torch.randint(0, TIME_STEPS, (x0.shape[0],))
-        alpha_bar_t = alpha_bar[t].view(-1, 1)
+        t = torch.randint(0, TIME_STEPS, x0.shape)
+        alpha_bar_t = alpha_bar[t]#.unsqueeze(0)
         noisy_x = torch.sqrt(alpha_bar_t) * x0 + torch.sqrt(1 - alpha_bar_t) * noise
 
         # Step 4: Predict noise using the model
@@ -114,8 +122,7 @@ def sample_reverse(g, count):
     x : torch.Tensor
         The final sample from the model
     """
-    
-    x = torch.rand((count))
+
     g.eval()
     with torch.no_grad():
         # Step 1: Initialize x_T ~ N(0, I)
@@ -125,13 +132,13 @@ def sample_reverse(g, count):
         alpha = 1 - BETA
         alpha_bar = torch.cumprod(alpha.repeat(TIME_STEPS), dim=0)
         for t in reversed(range(TIME_STEPS)):
-            alpha_t = alpha[t]
+            alpha_t = alpha
             alpha_bar_t = alpha_bar[t]
             alpha_bar_t_prev = alpha_bar[t - 1] if t > 0 else torch.tensor(1.0)
 
             # Predict noise using the model
             t_tensor = torch.full((count,), t, dtype=torch.long)
-            predicted_noise = g(x, t_tensor)
+            predicted_noise = g(x, t_tensor).squeeze()
 
             # Compute mean of the reverse process
             mean = (1 / torch.sqrt(alpha_t)) * (
@@ -162,3 +169,5 @@ sns.histplot(samples, ax=ax, bins=bins, color='red', label='Sampled distribution
 ax.legend()
 ax.set_xlabel('Sample value')
 ax.set_ylabel('Sample count')
+
+fig.savefig("results.png")
