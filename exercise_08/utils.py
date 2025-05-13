@@ -61,24 +61,39 @@ def collate_fn_transformer(batch):
 class TransformerEncoder(nn.Module):
     def __init__(
         self,
-       ...
+        n_node_features,
+        n_latent_edge_features,
+        dim_feedforward,
+        output_dim=2,
     ):
         super().__init__()
 
         # Hint: define the input embedding layer
 
         encoder_layer = nn.TransformerEncoderLayer(  # https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoderLayer.html
-            d_model=,
-            nhead=,
-            dim_feedforward=,
+            d_model=n_latent_edge_features,
+            nhead=2,
+            dim_feedforward=dim_feedforward,
             activation="relu",
             batch_first=True,
             norm_first=True,
             dropout=0.02
         )
 
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=) # https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoder.html
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=2) # https://pytorch.org/docs/stable/generated/torch.nn.TransformerEncoder.html
+        
+        self.encode_mlp = nn.Sequential(
+            nn.Linear(n_node_features, 32),  # input: data + time step
+            nn.ReLU(),
+            nn.Linear(32, n_latent_edge_features),
+        )
 
+
+        self.out_mlp = nn.Sequential(
+            nn.LazyLinear(32),  # input: data + time step
+            nn.ReLU(),
+            nn.Linear(32, output_dim),
+        )
         # Hint: define the output projection layer
 
     def forward(self, data) -> torch.Tensor:
@@ -98,6 +113,8 @@ class TransformerEncoder(nn.Module):
 
         # 1) embed the input data into the hidden dimension
           # shape (B x N, F) -> (B x N, D)
+              
+        src = self.encode_mlp(src)
 
         # 2) split the data into a list of tensors, one for each event
         parts = src.split(lengths, dim=0)  # shape (B x N, D) -> (B, N, D), where every batch entry can have a variable length,
@@ -119,7 +136,6 @@ class TransformerEncoder(nn.Module):
 
         # 5) call the transformer with padded tensor of shape (B, MAXLEN, D) and corresponding mask of shape (B, MAXLEN)
         enc_out = self.encoder(padded, src_key_padding_mask=mask)
-
         # 6) masked mean‐pool, i.e., form the average for every batch item along the sequence dimension
         # the output of the transformer is a tensor of shape (B, MAXLEN, D)
         # we need to take the mean over the sequence dimension (MAXLEN) to get a single vector for each batch item
@@ -130,5 +146,10 @@ class TransformerEncoder(nn.Module):
         pooled = summed / torch.LongTensor(lengths)[:,None].to(enc_out)
 
         # 7) apply a final linear layer to get the output of shape (B, output_dim)
+        x = self.out_mlp(pooled)
+        
+        return x
+        
+        
 
 

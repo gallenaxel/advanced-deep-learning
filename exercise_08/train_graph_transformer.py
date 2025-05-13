@@ -11,8 +11,7 @@ import pickle
 
 import numpy as np
 import awkward as awk
-#from gnn_encoder import GNNEncoder, collate_fn_gnn
-#from gnn_trafo_helper import train_model, evaluate_model, normalize_x, normalize_y, normalize_time, denormalize_x, denormalize_y, get_img_from_matplotlib
+
 
 from tqdm import tqdm
 
@@ -25,13 +24,13 @@ from matplotlib import pyplot as plt
 import torch.nn.functional as F
 
 from util import get_device, EarlyStopping
-from utils import collate_fn_gnn
+from utils import collate_fn_transformer
 
 DATA_PATH = "../datasets/iceCube/"  # path to the data
 
 batch_size = 50
 project_dir = "dev/"
-num_epochs = 300
+num_epochs = 30#300
 initial_lr = 0.0001
 
 
@@ -148,8 +147,8 @@ def main():
     # Create the DataLoader for training, validation, and test datasets
     # Important: We use the custom collate function to preprocess the data for GNN (see the description of the collate function for details)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_gnn)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_gnn)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_transformer)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_transformer)
 
 
     device = "cpu"#get_device()
@@ -157,9 +156,10 @@ def main():
 
     from utils import TransformerEncoder
 
-    n_edge_features, n_latent_edge_features = 6, 64
+    n_node_features, n_latent_edge_features = 3, 64
+    n_latent_edge_features = 128
 
-    model = GNNEncoder(n_edge_features, n_latent_edge_features)
+    model = TransformerEncoder(n_node_features, n_latent_edge_features, n_latent_edge_features)
 
     model.to(device)
 
@@ -177,7 +177,7 @@ def main():
         train_loss = 0
         # currently no batches are run, needs dataloader
         for batch_idx, (batch_x, batch_y) in enumerate(train_loader):
-            batch_x = batch_x.to(device)
+            batch_x[0].to(device)
             pred = model(batch_x)
             loss = criterion(pred, batch_y)
             optimizer.zero_grad()
@@ -236,11 +236,11 @@ def main():
     test_dataset["xpos"] = label_x_scaler.transform(test_dataset["xpos"])
     test_dataset["ypos"] = label_y_scaler.transform(test_dataset["ypos"])
 
-    test_loader = DataLoader(test_dataset, batch_size=40, shuffle=False, collate_fn=collate_fn_gnn)
+    test_loader = DataLoader(test_dataset, batch_size=40, shuffle=False, collate_fn=collate_fn_transformer)
     
     y_pred_tensor = []
     for batch_x, batch_y in test_loader:
-        batch_x = batch_x.to(device)
+        batch_x[0].to(device)
         batch_y = batch_y.to(device)
         predictions = model(batch_x)
         y_pred_tensor.append(predictions.detach().cpu())
